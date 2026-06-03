@@ -1,6 +1,6 @@
-package com.elite.employeemanager.role.repository;
+package com.elite.employeemanager.auth.role.repository;
 
-import com.elite.employeemanager.role.entity.Role;
+import com.elite.employeemanager.auth.role.entity.Role;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

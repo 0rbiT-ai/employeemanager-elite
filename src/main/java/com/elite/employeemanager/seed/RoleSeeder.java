@@ -1,12 +1,10 @@
 package com.elite.employeemanager.seed;
 
-import com.elite.employeemanager.role.entity.Role;
-import com.elite.employeemanager.role.repository.RoleRepository;
+import com.elite.employeemanager.auth.role.entity.Role;
+import com.elite.employeemanager.auth.role.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
-
-import java.time.LocalDateTime;
 
 @Component
 @RequiredArgsConstructor

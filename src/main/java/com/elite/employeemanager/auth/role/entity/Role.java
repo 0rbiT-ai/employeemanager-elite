@@ -1,9 +1,11 @@
-package com.elite.employeemanager.role.entity;
+package com.elite.employeemanager.auth.role.entity;
 
+import com.elite.employeemanager.auth.mapping.entity.RolePermissions;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -32,4 +34,6 @@ public class Role {
     @Builder.Default
     private LocalDateTime createdAt=LocalDateTime.now();
 
+    @OneToMany(mappedBy = "role")
+    private List<RolePermissions> rolePermissions;
 }
