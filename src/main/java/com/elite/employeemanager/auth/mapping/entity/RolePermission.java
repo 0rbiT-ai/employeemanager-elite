@@ -1,9 +1,11 @@
 package com.elite.employeemanager.auth.mapping.entity;
 
-import com.elite.employeemanager.auth.permissions.entity.Permissions;
+import com.elite.employeemanager.auth.permission.entity.Permission;
 import com.elite.employeemanager.auth.role.entity.Role;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Data
 @Builder
@@ -13,16 +15,18 @@ import lombok.*;
 @Setter
 @Entity
 @Table(name = "role_permissions")
-public class RolePermissions {
+public class RolePermission {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id",nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Role role;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "permissions_id",nullable = false)
-    private Permissions permissions;
+    @JoinColumn(name = "permission_id",nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private Permission permission;
 }
