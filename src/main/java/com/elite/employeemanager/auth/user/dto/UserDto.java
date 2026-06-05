@@ -15,4 +15,6 @@ public class UserDto {
     private Long id;
     private String email;
     private List<String> roles;
+    private List<String> permissions;
+    private List<String> components;
 }

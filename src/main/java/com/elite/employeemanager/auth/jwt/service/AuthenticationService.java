@@ -3,8 +3,13 @@ package com.elite.employeemanager.auth.jwt.service;
 import com.elite.employeemanager.auth.jwt.dto.AuthenticationResponse;
 import com.elite.employeemanager.auth.jwt.dto.LoginRequest;
 import com.elite.employeemanager.auth.jwt.dto.RefreshTokenRequest;
+import com.elite.employeemanager.auth.mapping.entity.RoleComponent;
+import com.elite.employeemanager.auth.mapping.entity.UserRole;
+import com.elite.employeemanager.auth.mapping.repository.RoleComponentRepository;
+import com.elite.employeemanager.auth.mapping.repository.UserRoleRepository;
 import com.elite.employeemanager.auth.refreshtoken.entity.RefreshToken;
 import com.elite.employeemanager.auth.refreshtoken.service.RefreshTokenService;
+import com.elite.employeemanager.auth.role.entity.Role;
 import com.elite.employeemanager.auth.user.dto.UserDto;
 import com.elite.employeemanager.auth.user.entity.User;
 import com.elite.employeemanager.auth.user.repository.UserRepository;
@@ -30,12 +35,34 @@ public class AuthenticationService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final CustomUserDetailsService customUserDetailsService;
+    private final UserRoleRepository userRoleRepository;
+    private final RoleComponentRepository roleComponentRepository;
 
     private List<String> getUserRoles(User user){
         return user.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .filter(auth -> auth.startsWith("ROLE_"))
                 .map(role -> role.replace("ROLE_", "")).toList();
+    }
+
+    private List<String> getUserPermissions(User user){
+        return user.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(auth->!auth.startsWith("ROLE_")).toList();
+    }
+
+    private List<String> getUserComponents(User user){
+        List<UserRole> userRoles = userRoleRepository.findByUser(user);
+        if (userRoles.isEmpty()){
+            return List.of();
+        }
+
+        List<Role> roles = userRoles.stream().map(UserRole::getRole).toList();
+        return roleComponentRepository.findByRoleIn(roles).stream()
+                .filter(RoleComponent::getCanView)
+                .map(rc->rc.getComponent().getComponentKey())
+                .distinct()
+                .toList();
     }
 
     public AuthenticationResponse login(LoginRequest request){
@@ -50,7 +77,10 @@ public class AuthenticationService {
                 .user(UserDto.builder()
                         .id(user.getId())
                         .email(user.getUsername())
-                        .roles(getUserRoles(user)).build()
+                        .roles(getUserRoles(user))
+                        .permissions(getUserPermissions(user))
+                        .components(getUserComponents(user))
+                        .build()
                 )
                 .build();
     }
@@ -68,7 +98,10 @@ public class AuthenticationService {
                             UserDto.builder()
                                     .id(user.getId())
                                     .email(user.getUsername())
-                                    .roles(getUserRoles(user)).build()
+                                    .roles(getUserRoles(user))
+                                    .permissions(getUserPermissions(user))
+                                    .components(getUserComponents(user))
+                                    .build()
                     );
                 }).orElseThrow(()->{
                     throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"Invalid Refresh Token");
