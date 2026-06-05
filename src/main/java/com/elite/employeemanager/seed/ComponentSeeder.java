@@ -29,6 +29,7 @@ public class ComponentSeeder implements CommandLineRunner {
         Component adminOverview = seedComponent("ADMIN_OVERVIEW", "Admin Overview", "/admin/overview", "shield-alert", "ADMIN", 2);
         Component timesheets = seedComponent("TIMESHEET_SUBMIT", "Timesheets", "/timesheets", "clock", "SHARED", 3);
         Component meetings = seedComponent("MEETINGS_VIEW", "Link Room", "/meetings", "video", "SHARED", 4);
+        Component employees = seedComponent("EMPLOYEES", "Employees Directory", "/admin/employees", "users", "ADMIN", 5);
         // 2. Fetch Roles
         Role admin = roleRepository.findByRoleCode("ADMIN").orElseThrow();
         Role teamLead = roleRepository.findByRoleCode("TEAM_LEAD").orElseThrow();
@@ -39,6 +40,7 @@ public class ComponentSeeder implements CommandLineRunner {
         mapComponentToRole(admin, adminOverview, true, true, true, true);
         mapComponentToRole(admin, timesheets, true, true, true, true);
         mapComponentToRole(admin, meetings, true, true, true, true);
+        mapComponentToRole(admin, employees, true, true, true, true);
         // Team Leads get dashboard, timesheets, and meetings
         mapComponentToRole(teamLead, dashboard, true, true, true, true);
         mapComponentToRole(teamLead, timesheets, true, true, true, true);
