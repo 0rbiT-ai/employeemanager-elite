@@ -18,6 +18,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -40,6 +41,7 @@ public class AuthenticationService {
     public AuthenticationResponse login(LoginRequest request){
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(),request.getPassword()));
         User user = (User) customUserDetailsService.loadUserByUsername(request.getEmail());
+        user.setLastLogin(LocalDateTime.now());
         String jwt = jwtService.generateToken(user);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
         return AuthenticationResponse.builder()
