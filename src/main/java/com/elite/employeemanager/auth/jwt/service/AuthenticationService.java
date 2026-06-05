@@ -8,6 +8,7 @@ import com.elite.employeemanager.auth.refreshtoken.service.RefreshTokenService;
 import com.elite.employeemanager.auth.user.dto.UserDto;
 import com.elite.employeemanager.auth.user.entity.User;
 import com.elite.employeemanager.auth.user.repository.UserRepository;
+import com.elite.employeemanager.auth.user.service.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,7 @@ public class AuthenticationService {
     private final UserRepository userRepository;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final CustomUserDetailsService customUserDetailsService;
 
     private List<String> getUserRoles(User user){
         return user.getAuthorities().stream()
@@ -37,7 +39,7 @@ public class AuthenticationService {
 
     public AuthenticationResponse login(LoginRequest request){
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(),request.getPassword()));
-        User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+        User user = (User) customUserDetailsService.loadUserByUsername(request.getEmail());
         String jwt = jwtService.generateToken(user);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
         return AuthenticationResponse.builder()
@@ -55,6 +57,7 @@ public class AuthenticationService {
         return refreshTokenService.getByToken(request.getRefreshToken())
                 .map(refreshTokenService::verifyExpiration)
                 .map(RefreshToken::getUser)
+                .map(user -> (User) customUserDetailsService.loadUserByUsername(user.getEmail()))
                 .map(user -> {
                     String newAccessToken = jwtService.generateToken(user);
                     return new AuthenticationResponse(
