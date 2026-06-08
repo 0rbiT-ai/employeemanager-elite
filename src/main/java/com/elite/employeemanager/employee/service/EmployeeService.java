@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -21,6 +22,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
@@ -57,12 +59,16 @@ public class EmployeeService {
 
             User existingUser = existingUserOpt.get();
             existingUser.setIsActive(!"INACTIVE".equalsIgnoreCase(employee.getStatus()));
-            existingUser.setPasswordHash(passwordEncoder.encode(userPayload.getRawPassword()));
-
+            if (userPayload.getRawPassword()!=null && !userPayload.getRawPassword().trim().isEmpty()){
+                existingUser.setPasswordHash(passwordEncoder.encode(userPayload.getRawPassword()));
+            }
             existingUser.setPasswordLastUpdatedAt(LocalDateTime.now());
             savedUser = userRepository.save(existingUser);
         }
         else{
+            if (userPayload.getRawPassword() == null || userPayload.getRawPassword().trim().isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password is required for new employee");
+            }
             User newUser = User.builder()
                     .email(employee.getWorkEmail())
                     .passwordHash(passwordEncoder.encode(userPayload.getRawPassword()))
