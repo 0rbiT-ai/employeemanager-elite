@@ -1,6 +1,8 @@
 package com.elite.employeemanager.auth.user.entity;
 
 import com.elite.employeemanager.auth.mapping.entity.UserRole;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.jspecify.annotations.Nullable;
@@ -31,13 +33,17 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String passwordHash;
 
+    @Transient
+    @JsonProperty(value = "password", access = JsonProperty.Access.WRITE_ONLY)
+    private String rawPassword;
+
     @Builder.Default
     @Column(nullable = false)
     private LocalDateTime passwordLastUpdatedAt=LocalDateTime.now();
 
     @Builder.Default
-    @Column(nullable = false)
-    private boolean isActive=true;
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive=true;
 
     private LocalDateTime lastLogin;
 
@@ -49,7 +55,7 @@ public class User implements UserDetails {
 
     @Builder.Default
     @Column(nullable = false)
-    private boolean forcePasswordChange=false;
+    private Boolean forcePasswordChange=false;
 
     @Builder.Default
     @Column(nullable = false)
@@ -63,6 +69,7 @@ public class User implements UserDetails {
     private Collection<? extends GrantedAuthority> authorities;
 
     @Override
+    @JsonIgnore
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities;
     }
@@ -78,22 +85,26 @@ public class User implements UserDetails {
     }
 
     @Override
+    @JsonIgnore
     public boolean isAccountNonExpired() {
         return true;
     }
 
     @Override
+    @JsonIgnore
     public boolean isAccountNonLocked() {
         return accountLockedUntil==null || accountLockedUntil.isBefore(LocalDateTime.now());
     }
 
     @Override
+    @JsonIgnore
     public boolean isCredentialsNonExpired() {
         return true;
     }
 
     @Override
+    @JsonIgnore
     public boolean isEnabled() {
-        return isActive;
+        return isActive != null && isActive;
     }
 }

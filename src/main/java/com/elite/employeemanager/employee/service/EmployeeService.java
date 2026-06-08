@@ -28,7 +28,7 @@ public class EmployeeService {
         User userPayload = employee.getUser();
         User newUser = User.builder()
                 .email(employee.getWorkEmail())
-                .passwordHash(passwordEncoder.encode(userPayload.getPassword()))
+                .passwordHash(passwordEncoder.encode(userPayload.getRawPassword()))
                 .passwordLastUpdatedAt(LocalDateTime.now())
                 .isActive(!"INACTIVE".equalsIgnoreCase(employee.getStatus()))
                 .build();
@@ -49,6 +49,9 @@ public class EmployeeService {
     public Employee updateEmployeeById(Long id, Employee updateEmployee) {
         Employee employee = getEmployeeById(id);
 
+        if (updateEmployee.getEmployeeCode()!=null){
+            employee.setEmployeeCode(updateEmployee.getEmployeeCode());
+        }
         if (updateEmployee.getName()!=null){
             employee.setName(updateEmployee.getName());
         }
@@ -79,9 +82,9 @@ public class EmployeeService {
 
             if (updateEmployee.getStatus()!=null){
                 if ("INACTIVE".equalsIgnoreCase(updateEmployee.getStatus())) {
-                    existingUserPayload.setActive(false);
+                    existingUserPayload.setIsActive(false);
                 } else if ("ACTIVE".equalsIgnoreCase(updateEmployee.getStatus())||"ON_LEAVE".equalsIgnoreCase(updateEmployee.getStatus())){
-                    existingUserPayload.setActive(true);
+                    existingUserPayload.setIsActive(true);
                 }
                 employee.setStatus(updateEmployee.getStatus());
             }
@@ -91,9 +94,9 @@ public class EmployeeService {
                 existingUserPayload.setEmail(updateEmployee.getWorkEmail());
             }
 
-            if (updateEmployee.getUser() != null && updateEmployee.getUser().getPassword() != null && !updateEmployee.getUser().getPassword().isEmpty()) {
+            if (updateEmployee.getUser() != null && updateEmployee.getUser().getRawPassword() != null && !updateEmployee.getUser().getRawPassword().isEmpty()) {
                 User updatedUserPayload = updateEmployee.getUser();
-                String newRawPassword = updatedUserPayload.getPassword();
+                String newRawPassword = updatedUserPayload.getRawPassword();
                 String newHashedPassword = passwordEncoder.encode(newRawPassword);
                 existingUserPayload.setPasswordLastUpdatedAt(LocalDateTime.now());
                 existingUserPayload.setPasswordHash(newHashedPassword);
@@ -113,7 +116,7 @@ public class EmployeeService {
             currentUserId = ((User) principal).getId();
         }
 
-        employee.setDeleted(true);
+        employee.setIsDeleted(true);
         employee.setDeletedAt(LocalDateTime.now());
         employee.setDeletedBy(currentUserId);
         employee.setDeleteReason(reason);
@@ -121,7 +124,7 @@ public class EmployeeService {
 
         if (employee.getUser() != null) {
             User user = employee.getUser();
-            user.setActive(false); 
+            user.setIsActive(false);
             userRepository.save(user);
         }
 

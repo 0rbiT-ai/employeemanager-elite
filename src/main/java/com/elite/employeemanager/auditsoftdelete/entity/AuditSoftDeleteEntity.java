@@ -1,5 +1,6 @@
 package com.elite.employeemanager.auditsoftdelete.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
 import lombok.Getter;
@@ -21,8 +22,9 @@ use @SQLDelete and @SQLRestriction annotations in child entities like ->
 @MappedSuperclass
 public abstract class AuditSoftDeleteEntity extends AuditableEntity{
 
+    @JsonIgnore
     @Column(name = "is_deleted", nullable = false)
-    private boolean isDeleted = false;
+    private Boolean isDeleted = false;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
