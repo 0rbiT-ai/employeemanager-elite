@@ -7,7 +7,6 @@ import com.elite.employeemanager.employee.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.parameters.P;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -31,7 +30,7 @@ public class EmployeeService {
                 .email(employee.getWorkEmail())
                 .passwordHash(passwordEncoder.encode(userPayload.getPassword()))
                 .passwordLastUpdatedAt(LocalDateTime.now())
-                .isActive(true)
+                .isActive(!"INACTIVE".equalsIgnoreCase(employee.getStatus()))
                 .build();
         User savedUser = userRepository.save(newUser);
         employee.setUser(savedUser);
@@ -47,45 +46,59 @@ public class EmployeeService {
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
     }
 
-    public Employee updateEmployeeById(Long id, Employee updateEmployee){
+    public Employee updateEmployeeById(Long id, Employee updateEmployee) {
         Employee employee = getEmployeeById(id);
 
-        employee.setName(updateEmployee.getName());
-        employee.setPersonalEmail(updateEmployee.getPersonalEmail());
-        employee.setPhone(updateEmployee.getPhone());
-        employee.setDesignation(updateEmployee.getDesignation());
-        employee.setJoiningDate(updateEmployee.getJoiningDate());
-        employee.setStatus(updateEmployee.getStatus());
-        employee.setNotificationPreference(updateEmployee.getNotificationPreference());
-        employee.setProfileImage(updateEmployee.getProfileImage());
+        if (updateEmployee.getName()!=null){
+            employee.setName(updateEmployee.getName());
+        }
+        if (updateEmployee.getPersonalEmail()!=null){
+            employee.setPersonalEmail(updateEmployee.getPersonalEmail());
+        }
+        if (updateEmployee.getPhone()!=null){
+            employee.setPhone(updateEmployee.getPhone());
+        }
+        if (updateEmployee.getDesignation()!=null){
+            employee.setDesignation(updateEmployee.getDesignation());
+        }
+        if (updateEmployee.getJoiningDate()!=null){
+            employee.setJoiningDate(updateEmployee.getJoiningDate());
+        }
+        if (updateEmployee.getNotificationPreference()!=null){
+            employee.setNotificationPreference(updateEmployee.getNotificationPreference());
+        }
+        if (updateEmployee.getProfileImage()!=null){
+            employee.setProfileImage(updateEmployee.getProfileImage());
+        }
+        if (updateEmployee.getStatus()!=null){
+            employee.setStatus(updateEmployee.getStatus());
+        }
 
-        if(employee.getUser()!=null && updateEmployee.getUser()!=null){
+        if (employee.getUser() != null) {
             User existingUserPayload = employee.getUser();
-            User updatedUserPayload = updateEmployee.getUser();
 
-            if (updatedUserPayload.getEmail()!=null && !updatedUserPayload.getEmail().isEmpty()){
-                String newEmail = updatedUserPayload.getEmail();
-                employee.setWorkEmail(newEmail);
-                existingUserPayload.setEmail(newEmail);
+            if (updateEmployee.getStatus()!=null){
+                if ("INACTIVE".equalsIgnoreCase(updateEmployee.getStatus())) {
+                    existingUserPayload.setActive(false);
+                } else if ("ACTIVE".equalsIgnoreCase(updateEmployee.getStatus())||"ON_LEAVE".equalsIgnoreCase(updateEmployee.getStatus())){
+                    existingUserPayload.setActive(true);
+                }
+                employee.setStatus(updateEmployee.getStatus());
             }
-            if (updatedUserPayload.getPassword()!=null && !updatedUserPayload.getPassword().isEmpty()){
+
+            if (updateEmployee.getWorkEmail()!=null && !updateEmployee.getWorkEmail().isEmpty()){
+                employee.setWorkEmail(updateEmployee.getWorkEmail());
+                existingUserPayload.setEmail(updateEmployee.getWorkEmail());
+            }
+
+            if (updateEmployee.getUser() != null && updateEmployee.getUser().getPassword() != null && !updateEmployee.getUser().getPassword().isEmpty()) {
+                User updatedUserPayload = updateEmployee.getUser();
                 String newRawPassword = updatedUserPayload.getPassword();
                 String newHashedPassword = passwordEncoder.encode(newRawPassword);
                 existingUserPayload.setPasswordLastUpdatedAt(LocalDateTime.now());
                 existingUserPayload.setPasswordHash(newHashedPassword);
             }
-            userRepository.save(existingUserPayload);
-        }
-        if(employee.getUser()!=null){
-            User existingUserPayload = employee.getUser();
-            if (updateEmployee.getStatus()!=null){
-                if("INACTIVE".equalsIgnoreCase(updateEmployee.getStatus())){
-                    existingUserPayload.setActive(false);
-                }
-                else {
-                    existingUserPayload.setActive(true);
-                }
-            }
+
             userRepository.save(existingUserPayload);
         }
         return employeeRepository.save(employee);
@@ -96,7 +109,7 @@ public class EmployeeService {
 
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long currentUserId = null;
-        if(principal != null) {
+        if(principal instanceof User) {
             currentUserId = ((User) principal).getId();
         }
 
@@ -104,6 +117,7 @@ public class EmployeeService {
         employee.setDeletedAt(LocalDateTime.now());
         employee.setDeletedBy(currentUserId);
         employee.setDeleteReason(reason);
+        employee.setStatus("INACTIVE");
 
         if (employee.getUser() != null) {
             User user = employee.getUser();
