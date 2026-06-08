@@ -1,5 +1,9 @@
 package com.elite.employeemanager.employee.service;
 
+import com.elite.employeemanager.auth.mapping.entity.UserRole;
+import com.elite.employeemanager.auth.mapping.repository.UserRoleRepository;
+import com.elite.employeemanager.auth.role.entity.Role;
+import com.elite.employeemanager.auth.role.repository.RoleRepository;
 import com.elite.employeemanager.auth.user.entity.User;
 import com.elite.employeemanager.auth.user.repository.UserRepository;
 import com.elite.employeemanager.employee.entity.Employee;
@@ -13,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -20,30 +25,91 @@ public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RoleRepository roleRepository;
+    private final UserRoleRepository userRoleRepository;
+
+    private void populateRoles(Employee employee){
+        if (employee==null||employee.getUser()==null) return;
+
+        List<UserRole> userRoles = userRoleRepository.findByUser(employee.getUser());
+        List<String> roles = userRoles.stream().map(ur->ur.getRole().getRoleCode()).toList();
+
+        employee.setRoles(roles);
+    }
+
+    private User getCurrentUser(){
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if(principal instanceof User) {
+            return  ((User) principal);
+        }
+        return null;
+    }
 
     public Employee addEmployee(Employee employee){
         if (employee.getUser()==null){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"User Credentials are required to add employee");
         }
         User userPayload = employee.getUser();
-        User newUser = User.builder()
-                .email(employee.getWorkEmail())
-                .passwordHash(passwordEncoder.encode(userPayload.getRawPassword()))
-                .passwordLastUpdatedAt(LocalDateTime.now())
-                .isActive(!"INACTIVE".equalsIgnoreCase(employee.getStatus()))
-                .build();
-        User savedUser = userRepository.save(newUser);
+        User savedUser;
+
+        Optional<User> existingUserOpt = userRepository.findByEmail(employee.getWorkEmail());
+        if (existingUserOpt.isPresent()){
+
+            User existingUser = existingUserOpt.get();
+            existingUser.setIsActive(!"INACTIVE".equalsIgnoreCase(employee.getStatus()));
+            existingUser.setPasswordHash(passwordEncoder.encode(userPayload.getRawPassword()));
+
+            existingUser.setPasswordLastUpdatedAt(LocalDateTime.now());
+            savedUser = userRepository.save(existingUser);
+        }
+        else{
+            User newUser = User.builder()
+                    .email(employee.getWorkEmail())
+                    .passwordHash(passwordEncoder.encode(userPayload.getRawPassword()))
+                    .passwordLastUpdatedAt(LocalDateTime.now())
+                    .isActive(!"INACTIVE".equalsIgnoreCase(employee.getStatus()))
+                    .build();
+            savedUser = userRepository.save(newUser);
+        }
+
         employee.setUser(savedUser);
+        userRoleRepository.deleteAll(userRoleRepository.findByUser(savedUser));
+
+        List<String> roles = employee.getRoles();
+        if (roles==null||roles.isEmpty()){
+            roles=List.of("Employee");
+        }
+
+        for (String roleStr:roles){
+            String roleCode = roleStr.toUpperCase().trim().replace(" ","_");
+            if ("ADMINISTRATOR".equals(roleCode)) roleCode="ADMIN";
+
+            Role role = roleRepository.findByRoleCode(roleCode)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Role not found: " + roleStr));
+
+            UserRole userRoleMapping = UserRole.builder()
+                    .user(savedUser)
+                    .role(role)
+                    .assignedAt(LocalDateTime.now())
+                    .assignedBy(getCurrentUser())
+                    .build();
+            userRoleRepository.save(userRoleMapping);
+        }
+
         return employeeRepository.save(employee);
     }
 
     public List<Employee> getAllEmployees(){
-        return employeeRepository.findAll();
+        List<Employee> employees = employeeRepository.findAll();
+        employees.forEach(this::populateRoles);
+        return employees;
     }
 
     public Employee getEmployeeById(Long id){
-        return employeeRepository.findById(id)
+        Employee employee = employeeRepository.findById(id)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
+        populateRoles(employee);
+        return employee;
     }
 
     public Employee updateEmployeeById(Long id, Employee updateEmployee) {
@@ -102,6 +168,27 @@ public class EmployeeService {
                 existingUserPayload.setPasswordHash(newHashedPassword);
             }
 
+            if (updateEmployee.getRoles()!=null){
+                List<UserRole> existingRoles = userRoleRepository.findByUser(existingUserPayload);
+                userRoleRepository.deleteAll(existingRoles);
+
+                for (String roleStr: updateEmployee.getRoles()){
+                    String roleCode = roleStr.trim().replace(" ","_");
+                    if ("ADMINISTRATOR".equals(roleCode)) roleCode="ADMIN";
+
+                    Role role = roleRepository.findByRoleCode(roleCode)
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Role not found: " + roleStr));
+
+                    UserRole userRoleMapping = UserRole.builder()
+                            .user(existingUserPayload)
+                            .role(role)
+                            .assignedAt(LocalDateTime.now())
+                            .assignedBy(getCurrentUser())
+                            .build();
+                    userRoleRepository.save(userRoleMapping);
+                }
+            }
+
             userRepository.save(existingUserPayload);
         }
         return employeeRepository.save(employee);
@@ -110,15 +197,9 @@ public class EmployeeService {
     public void deleteEmployeeById(Long id, String reason){
         Employee employee = getEmployeeById(id);
 
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Long currentUserId = null;
-        if(principal instanceof User) {
-            currentUserId = ((User) principal).getId();
-        }
-
         employee.setIsDeleted(true);
         employee.setDeletedAt(LocalDateTime.now());
-        employee.setDeletedBy(currentUserId);
+        employee.setDeletedBy(getCurrentUser().getId());
         employee.setDeleteReason(reason);
         employee.setStatus("INACTIVE");
 
