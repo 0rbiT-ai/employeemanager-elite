@@ -25,19 +25,19 @@ public class Employee extends AuditSoftDeleteEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false,unique = true)
+    @Column(nullable = false)
     private String employeeCode;
 
     @Column(nullable = false)
     private String name;
 
-    @Column(unique = true,nullable = false)
+    @Column(nullable = false)
     private String workEmail;
 
     @Column(nullable = false)
     private String personalEmail;
 
-    @Column(unique = true,nullable = false)
+    @Column(nullable = false)
     private String phone;
 
     @Column(nullable = false)
