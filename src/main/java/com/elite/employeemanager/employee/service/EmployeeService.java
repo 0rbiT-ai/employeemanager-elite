@@ -48,38 +48,91 @@ public class EmployeeService {
     }
 
     public Employee addEmployee(Employee employee){
+
+        Optional<Employee> existingEmployeeOpt = employeeRepository.findAnyByWorkEmail(employee.getWorkEmail());
+        if (existingEmployeeOpt.isPresent()) {
+            Employee existingEmployee = existingEmployeeOpt.get();
+            if (Boolean.TRUE.equals(existingEmployee.getIsDeleted())) {
+                existingEmployee.setIsDeleted(false);
+                existingEmployee.setDeletedAt(null);
+                existingEmployee.setDeletedBy(null);
+                existingEmployee.setDeleteReason(null);
+                existingEmployee.setStatus(employee.getStatus() != null ? employee.getStatus() : "ACTIVE");
+
+                if (employee.getName() != null && !employee.getName().isBlank()) {
+                    existingEmployee.setName(employee.getName());
+                }
+
+                if (employee.getEmployeeCode() != null && !employee.getEmployeeCode().isBlank()) {
+                    existingEmployee.setEmployeeCode(employee.getEmployeeCode());
+                }
+
+                if (employee.getPhone() != null && !employee.getPhone().isBlank()) {
+                    existingEmployee.setPhone(employee.getPhone());
+                }
+
+                if (employee.getDesignation() != null && !employee.getDesignation().isBlank()) {
+                    existingEmployee.setDesignation(employee.getDesignation());
+                }
+
+                if (employee.getPersonalEmail() != null && !employee.getPersonalEmail().isBlank()) {
+                    existingEmployee.setPersonalEmail(employee.getPersonalEmail());
+                }
+
+                User user = existingEmployee.getUser();
+                user.setIsActive(true);
+
+                if (employee.getUser() != null && employee.getUser().getRawPassword() != null && !employee.getUser().getRawPassword().isBlank()) {
+                    user.setPasswordHash(passwordEncoder.encode(employee.getUser().getRawPassword()));
+                    user.setPasswordLastUpdatedAt(LocalDateTime.now());
+                }
+
+                if (employee.getRoles()!=null){
+                    List<UserRole> existingRoles = userRoleRepository.findByUser(user);
+                    userRoleRepository.deleteAll(existingRoles);
+                    userRoleRepository.flush();
+                    for (String roleStr: employee.getRoles()){
+                        String roleCode = roleStr.toUpperCase().trim().replace(" ","_");
+                        if ("ADMINISTRATOR".equals(roleCode)) roleCode="ADMIN";
+
+                        Role role = roleRepository.findByRoleCode(roleCode)
+                                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Role not found: " + roleStr));
+
+                        UserRole userRoleMapping = UserRole.builder()
+                                .user(user)
+                                .role(role)
+                                .assignedAt(LocalDateTime.now())
+                                .assignedBy(getCurrentUser())
+                                .build();
+                        userRoleRepository.save(userRoleMapping);
+                    }
+                }
+
+                userRepository.save(user);
+
+                return employeeRepository.save(existingEmployee);
+            }
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Employee already exists");
+        }
+
         if (employee.getUser()==null){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"User Credentials are required to add employee");
         }
+
         User userPayload = employee.getUser();
-        User savedUser;
-
-        Optional<User> existingUserOpt = userRepository.findByEmail(employee.getWorkEmail());
-        if (existingUserOpt.isPresent()){
-
-            User existingUser = existingUserOpt.get();
-            existingUser.setIsActive(!"INACTIVE".equalsIgnoreCase(employee.getStatus()));
-            if (userPayload.getRawPassword()!=null && !userPayload.getRawPassword().trim().isEmpty()){
-                existingUser.setPasswordHash(passwordEncoder.encode(userPayload.getRawPassword()));
-            }
-            existingUser.setPasswordLastUpdatedAt(LocalDateTime.now());
-            savedUser = userRepository.save(existingUser);
+        if (userPayload.getRawPassword() == null || userPayload.getRawPassword().trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password is required for new employee");
         }
-        else{
-            if (userPayload.getRawPassword() == null || userPayload.getRawPassword().trim().isEmpty()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password is required for new employee");
-            }
-            User newUser = User.builder()
-                    .email(employee.getWorkEmail())
-                    .passwordHash(passwordEncoder.encode(userPayload.getRawPassword()))
-                    .passwordLastUpdatedAt(LocalDateTime.now())
-                    .isActive(!"INACTIVE".equalsIgnoreCase(employee.getStatus()))
-                    .build();
-            savedUser = userRepository.save(newUser);
-        }
+
+        User newUser = User.builder()
+                .email(employee.getWorkEmail())
+                .passwordHash(passwordEncoder.encode(userPayload.getRawPassword()))
+                .passwordLastUpdatedAt(LocalDateTime.now())
+                .isActive(!"INACTIVE".equalsIgnoreCase(employee.getStatus()))
+                .build();
+        User savedUser = userRepository.save(newUser);
 
         employee.setUser(savedUser);
-        userRoleRepository.deleteAll(userRoleRepository.findByUser(savedUser));
 
         List<String> roles = employee.getRoles();
         if (roles==null||roles.isEmpty()){
@@ -162,6 +215,14 @@ public class EmployeeService {
             }
 
             if (updateEmployee.getWorkEmail()!=null && !updateEmployee.getWorkEmail().isEmpty()){
+
+                Optional<User> userWithEmail = userRepository.findByEmail(updateEmployee.getWorkEmail());
+                if (userWithEmail.isPresent() && !userWithEmail.get().getId().equals(existingUserPayload.getId())) {
+                    throw new ResponseStatusException(
+                            HttpStatus.CONFLICT,
+                            "Email already exists"
+                    );
+                }
                 employee.setWorkEmail(updateEmployee.getWorkEmail());
                 existingUserPayload.setEmail(updateEmployee.getWorkEmail());
             }
@@ -177,9 +238,9 @@ public class EmployeeService {
             if (updateEmployee.getRoles()!=null){
                 List<UserRole> existingRoles = userRoleRepository.findByUser(existingUserPayload);
                 userRoleRepository.deleteAll(existingRoles);
-
+                userRoleRepository.flush();
                 for (String roleStr: updateEmployee.getRoles()){
-                    String roleCode = roleStr.trim().replace(" ","_");
+                    String roleCode = roleStr.toUpperCase().trim().replace(" ","_");
                     if ("ADMINISTRATOR".equals(roleCode)) roleCode="ADMIN";
 
                     Role role = roleRepository.findByRoleCode(roleCode)
@@ -205,7 +266,9 @@ public class EmployeeService {
 
         employee.setIsDeleted(true);
         employee.setDeletedAt(LocalDateTime.now());
-        employee.setDeletedBy(getCurrentUser().getId());
+        if (getCurrentUser()!=null){
+            employee.setDeletedBy(getCurrentUser().getId());
+        }
         employee.setDeleteReason(reason);
         employee.setStatus("INACTIVE");
 
