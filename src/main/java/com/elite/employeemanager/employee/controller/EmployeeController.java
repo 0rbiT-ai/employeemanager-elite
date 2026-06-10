@@ -3,6 +3,8 @@ package com.elite.employeemanager.employee.controller;
 import com.elite.employeemanager.auth.user.entity.User;
 import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.employee.service.EmployeeService;
+import com.elite.employeemanager.project.entity.Project;
+import com.elite.employeemanager.project.service.ProjectEmployeeService;
 import com.elite.employeemanager.team.entity.Team;
 import com.elite.employeemanager.team.service.TeamEmployeeService;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ import java.util.List;
 public class EmployeeController {
     private final EmployeeService employeeService;
     private final TeamEmployeeService teamEmployeeService;
+    private final ProjectEmployeeService projectEmployeeService;
 
     @PostMapping
     @PreAuthorize("hasAuthority('EMPLOYEE_MANAGE')")
@@ -56,5 +59,11 @@ public class EmployeeController {
     @PreAuthorize("hasAuthority('EMPLOYEE_MANAGE') or hasAuthority('TEAM_MANAGE')")
     public ResponseEntity<List<Team>> getTeamsByEmployeeId(@PathVariable Long id){
         return new ResponseEntity<>(teamEmployeeService.getTeamsByEmployeeId(id), HttpStatus.OK);
+    }
+
+    @GetMapping("/{id}/projects")
+    @PreAuthorize("hasAuthority('EMPLOYEE_MANAGE') or hasAuthority('PROJECT_MANAGE')")
+    public ResponseEntity<List<Project>> getProjectsByEmployeeId(@PathVariable Long id){
+        return new ResponseEntity<>(projectEmployeeService.getProjectsByEmployeeId(id),HttpStatus.OK);
     }
 }
