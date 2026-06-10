@@ -18,6 +18,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
+@Check(constraints = "status in ('ACTIVE','INACTIVE', 'ON_LEAVE') AND notification_preference in ('EMAIL', 'WHATSAPP', 'TEAMS', 'ALL')")
 @Table(name = "employees")
 @SQLDelete(sql = "UPDATE employees SET is_deleted = true, deleted_at = NOW() WHERE id = ?")
 @SQLRestriction("is_deleted = false")
@@ -57,12 +58,10 @@ public class Employee extends AuditSoftDeleteEntity {
 
     @Builder.Default
     @Column(nullable = false)
-    @Check(constraints = "status in ('ACTIVE','INACTIVE', 'ON_LEAVE')")
     private String status="ACTIVE";
 
     @Builder.Default
     @Column(nullable = false)
-    @Check(constraints = "notification_preference in ('EMAIL', 'WHATSAPP', 'TEAMS', 'ALL')")
     private String notificationPreference="ALL";
 
     private String profileImage;

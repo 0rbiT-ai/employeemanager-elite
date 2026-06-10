@@ -37,6 +37,9 @@ public class DatabaseIndexInitializer implements CommandLineRunner {
         // For teams: team_name only unique for active teams
         jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_name_active ON teams(team_name) WHERE is_deleted = false;");
 
+        // For projects: project_name only unique for active projects(optional)
+        //jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_project_name_active ON projects(project_name) WHERE is_deleted = false;");
+
         System.out.println("Database partial indexes applied successfully!");
     }
 }

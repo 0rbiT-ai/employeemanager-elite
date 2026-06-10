@@ -13,6 +13,7 @@ import org.hibernate.annotations.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
+@Check(constraints = "status in ('ACTIVE','INACTIVE')")
 @Table(name = "teams")
 @SQLDelete(sql = "UPDATE teams SET is_deleted = true, deleted_at = NOW() WHERE id = ?")
 @SQLRestriction("is_deleted = false")
@@ -42,7 +43,6 @@ public class Team extends AuditSoftDeleteEntity {
 
     @Builder.Default
     @Column(nullable = false)
-    @Check(constraints = "status in ('ACTIVE','INACTIVE')")
     private String status="ACTIVE";
 
 }
