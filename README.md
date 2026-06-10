@@ -9,7 +9,10 @@ CREATE DATABASE empmanelite;
 
 LOCAL_DB_USERNAME = your_postgres_user\
 LOCAL_DB_PASSWORD = your_postgres_password\
-JWT_SECRET = your_hs512_hex_jwt_secret
+JWT_SECRET = your_hs512_hex_jwt_secret\
+MAIL_USERNAME = your_email_username_here\
+MAIL_PASSWORD = your_email_password_here\
+FRONTEND_URL = http://localhost:5173
 
 ## 3. run app :
 
@@ -30,8 +33,8 @@ Access to protected endpoints is governed by authorities compiled from user role
 
 | Role Code | Role Name | Granted Authorities / Permissions | Allowed Modules / Endpoints |
 | :--- | :--- | :--- | :--- |
-| **`ADMIN`** | Admin | `EMPLOYEE_MANAGE`, `TEAM_MANAGE`, `USER_CREATE`, `TASK_CREATE`, `TASK_ASSIGN`, `TIMESHEET_APPROVE`, `TIMESHEET_SUBMIT` | **All Endpoints** (Authentication, Employees, Teams, Team Members) |
-| **`TEAM_LEAD`** | Team Lead | `TEAM_MANAGE`, `TASK_CREATE`, `TASK_ASSIGN`, `TIMESHEET_APPROVE`, `TIMESHEET_SUBMIT` | Authentication, Teams, Team Members (No Employee Management) |
+| **`ADMIN`** | Admin | `EMPLOYEE_MANAGE`, `TEAM_MANAGE`, `PROJECT_MANAGE`, `USER_CREATE`, `TASK_CREATE`, `TASK_ASSIGN`, `TIMESHEET_APPROVE`, `TIMESHEET_SUBMIT` | **All Endpoints** (Authentication, Employees, Teams, Team Members, Projects) |
+| **`TEAM_LEAD`** | Team Lead | `TEAM_MANAGE`, `PROJECT_MANAGE`, `TASK_CREATE`, `TASK_ASSIGN`, `TIMESHEET_APPROVE`, `TIMESHEET_SUBMIT` | Authentication, Teams, Team Members, Projects (No Employee Management) |
 | **`SUB_LEAD`** | Sub Lead | `TIMESHEET_SUBMIT` (No default administrative permissions) | Authentication only (No Teams/Employee management unless assigned manually) |
 | **`EMPLOYEE`** | Employee | `TIMESHEET_SUBMIT` | Authentication only |
 
@@ -44,14 +47,14 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **HTTP Method:** `POST`
 *   **Path:** `/login`
 *   **Access Allowed:** Public (All Roles)
-*   **Request Body ([LoginRequest](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/auth/jwt/dto/LoginRequest.java)):**
+*   **Request Body ([LoginRequest](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/auth/jwt/dto/LoginRequest.java)):**
     ```json
     {
       "email": "employee@teamops.com",
       "password": "employee123"
     }
     ```
-*   **Success Response (200 OK - [AuthenticationResponse](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/auth/jwt/dto/AuthenticationResponse.java)):**
+*   **Success Response (200 OK - [AuthenticationResponse](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/auth/jwt/dto/AuthenticationResponse.java)):**
     ```json
     {
       "token": "eyJhbGciOiJIUzI1NiIsIn...", // JWT Access Token
@@ -70,7 +73,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **HTTP Method:** `POST`
 *   **Path:** `/refresh`
 *   **Access Allowed:** Public (All Roles)
-*   **Request Body ([RefreshTokenRequest](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/auth/jwt/dto/RefreshTokenRequest.java)):**
+*   **Request Body ([RefreshTokenRequest](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/auth/jwt/dto/RefreshTokenRequest.java)):**
     ```json
     {
       "refreshToken": "a189f38f-dc42..."
@@ -78,6 +81,33 @@ Access to protected endpoints is governed by authorities compiled from user role
     ```
 *   **Success Response (200 OK):**
     *   Returns updated access token (same response format as `POST /login`).
+
+### 1.3. Forgot Password
+*   **HTTP Method:** `POST`
+*   **Path:** `/forgot-password`
+*   **Access Allowed:** Public (All Roles)
+*   **Request Body ([ForgotPasswordRequest](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/auth/passwordreset/dto/ForgotPasswordRequest.java)):**
+    ```json
+    {
+      "email": "employee@teamops.com"
+    }
+    ```
+*   **Success Response (200 OK):**
+    *   *Body:* `"If the email exists, a password reset link has been sent."`
+
+### 1.4. Reset Password
+*   **HTTP Method:** `POST`
+*   **Path:** `/reset-password`
+*   **Access Allowed:** Public (All Roles)
+*   **Request Body ([ResetPasswordRequest](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/auth/passwordreset/dto/ResetPasswordRequest.java)):**
+    ```json
+    {
+      "token": "a189f38f-dc42...",
+      "newPassword": "newSecurePassword123"
+    }
+    ```
+*   **Success Response (200 OK):**
+    *   *Body:* `"Password Reset Successfully"`
 
 ---
 
@@ -88,7 +118,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 ### 2.1. Add Employee
 *   **HTTP Method:** `POST`
 *   **Path:** `/`
-*   **Request Body ([Employee](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/employee/entity/Employee.java)):**
+*   **Request Body ([Employee](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/employee/entity/Employee.java)):**
     ```json
     {
       "employeeCode": "EMP-0050",
@@ -168,7 +198,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **Path Parameters:**
     *   `id` (Long, Required): Database ID of the employee.
 *   **Request Payload:** None
-*   **Success Response (200 OK):** Returns a JSON Array of [Team](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/team/entity/Team.java) objects:
+*   **Success Response (200 OK):** Returns a JSON Array of [Team](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/team/entity/Team.java) objects:
     ```json
     [
       {
@@ -201,6 +231,39 @@ Access to protected endpoints is governed by authorities compiled from user role
     ```
 *   **Error Response (404 Not Found):** Returned if the employee ID is invalid or does not exist.
 
+### 2.7. Get Projects by Employee ID
+*   **HTTP Method:** `GET`
+*   **Path:** `/{id}/projects` (Full path: `/api/v1/employees/{id}/projects`)
+*   **Access Allowed Roles:** **`ADMIN`** and **`TEAM_LEAD`** (checks `EMPLOYEE_MANAGE` or `PROJECT_MANAGE` authority)
+*   **Description:** Retrieves a list of all projects a specific employee is assigned to.
+*   **Path Parameters:**
+    *   `id` (Long, Required): Database ID of the employee.
+*   **Request Payload:** None
+*   **Success Response (200 OK):** Returns a JSON Array of [Project](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/project/entity/Project.java) objects:
+    ```json
+    [
+      {
+        "id": 1,
+        "projectName": "Elite Portal",
+        "description": "Enterprise Employee Resource Management",
+        "clientName": "Acme Corp",
+        "colorHex": "#8ECAE6",
+        "startDate": "2026-06-10",
+        "endDate": "2026-12-31",
+        "status": "ACTIVE",
+        "progressPercentage": 0,
+        "createdAt": "2026-06-09T17:00:00",
+        "createdBy": 1,
+        "updatedAt": "2026-06-09T17:00:00",
+        "updatedBy": null,
+        "deletedAt": null,
+        "deletedBy": null,
+        "deleteReason": null
+      }
+    ]
+    ```
+*   **Error Response (404 Not Found):** Returned if the employee ID is invalid or does not exist.
+
 ---
 
 ## 3. Teams Module
@@ -210,7 +273,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 ### 3.1. Create Team
 *   **HTTP Method:** `POST`
 *   **Path:** `/`
-*   **Request Body ([Team](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/team/entity/Team.java)):**
+*   **Request Body ([Team](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/team/entity/Team.java)):**
     ```json
     {
       "teamName": "Engineering Core", // Unique
@@ -283,7 +346,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **Path Parameters:**
     *   `teamId` (Long, Required): Database ID of the target team.
     *   `employeeId` (Long, Required): Database ID of the employee to join the team.
-*   **Success Response (201 Created):** Returns the created [TeamEmployee](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/team/entity/TeamEmployee.java) relationship object:
+*   **Success Response (201 Created):** Returns the created [TeamEmployee](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/team/entity/TeamEmployee.java) relationship object:
     ```json
     {
       "id": 1,
@@ -321,4 +384,132 @@ Access to protected endpoints is governed by authorities compiled from user role
     *   `teamId` (Long, Required): Database ID of the team.
 *   **Success Response (200 OK):** Returns a list of `Employee` JSON objects belonging to the team.
 
+---
 
+## 5. Project Management Module
+**Base Path:** `/api/v1/projects` (Requires `Authorization` header)
+*   **Access Allowed Roles:** **`ADMIN`** and **`TEAM_LEAD`** (checks `PROJECT_MANAGE` authority)
+
+### 5.1. Add Project
+*   **HTTP Method:** `POST`
+*   **Path:** `/`
+*   **Request Body ([Project](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/project/entity/Project.java)):**
+    ```json
+    {
+      "projectName": "Elite Portal",
+      "description": "Enterprise Employee Resource Management",
+      "clientName": "Acme Corp",
+      "colorHex": "#8ECAE6",
+      "startDate": "2026-06-10",
+      "endDate": "2026-12-31",
+      "status": "ACTIVE",
+      "progressPercentage": 0
+    }
+    ```
+*   **Success Response (201 Created):** Returns the created `Project` JSON object.
+
+### 5.2. Get All Projects
+*   **HTTP Method:** `GET`
+*   **Path:** `/`
+*   **Request Body:** None
+*   **Success Response (200 OK):** Returns a list of all active (non-deleted) `Project` JSON objects.
+
+### 5.3. Get Project By ID
+*   **HTTP Method:** `GET`
+*   **Path:** `/{id}`
+*   **Path Parameters:**
+    *   `id` (Long, Required): Database ID of the project.
+*   **Success Response (200 OK):** Returns the corresponding `Project` JSON object.
+*   **Error Response (404 Not Found):** Returned if the project does not exist or has been soft-deleted.
+
+### 5.4. Update Project
+*   **HTTP Method:** `PUT`
+*   **Path:** `/{id}`
+*   **Path Parameters:**
+    *   `id` (Long, Required): Database ID of the project.
+*   **Request Body (All fields optional):**
+    ```json
+    {
+      "projectName": "Elite Portal v2",
+      "description": "Updated project description",
+      "clientName": "Acme Corp International",
+      "colorHex": "#219EBC",
+      "startDate": "2026-06-11",
+      "endDate": "2027-01-31",
+      "status": "ON_HOLD",
+      "progressPercentage": 25
+    }
+    ```
+*   **Success Response (200 OK):** Returns the updated `Project` JSON object.
+
+### 5.5. Delete Project (Soft Delete)
+*   **HTTP Method:** `DELETE`
+*   **Path:** `/{id}`
+*   **Path Parameters:**
+    *   `id` (Long, Required): Database ID of the project to soft delete.
+*   **Request Body (`text/plain`):**
+    *   Send a raw text string representing the deletion reason. E.g., `"Project cancelled by client"`
+*   **Success Response (200 OK):**
+    *   *Body:* `"Project Deleted"`
+
+---
+
+## 6. Project Members Module (Junction)
+**Base Path:** `/api/v1/projects` (Requires `Authorization` header)
+*   **Access Allowed Roles:** **`ADMIN`** and **`TEAM_LEAD`** (checks `PROJECT_MANAGE` authority)
+
+### 6.1. Add Employee to Project
+*   **HTTP Method:** `POST`
+*   **Path:** `/{projectId}/employees/{employeeId}`
+*   **Path Parameters:**
+    *   `projectId` (Long, Required): Database ID of the target project.
+    *   `employeeId` (Long, Required): Database ID of the employee to join the project.
+*   **Success Response (201 Created):** Returns the created [ProjectEmployee](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/project/entity/ProjectEmployee.java) relationship object:
+    ```json
+    {
+      "id": 1,
+      "project": {
+        "id": 1,
+        "projectName": "Elite Portal",
+        "description": "Enterprise Employee Resource Management",
+        "clientName": "Acme Corp",
+        "colorHex": "#8ECAE6",
+        "startDate": "2026-06-10",
+        "endDate": "2026-12-31",
+        "status": "ACTIVE",
+        "progressPercentage": 0
+      },
+      "employee": {
+        "id": 2,
+        "name": "Jane Doe",
+        "workEmail": "jane.doe@teamops.com",
+        "personalEmail": "jane.doe.personal@gmail.com",
+        "phone": "+91 99888 77665",
+        "designation": "Software Engineer",
+        "joiningDate": "2026-06-09",
+        "status": "ACTIVE",
+        "notificationPreference": "ALL",
+        "profileImage": "https://example.com/avatar.jpg"
+      }
+    }
+    ```
+*   **Error Responses:**
+    *   `404 Not Found`: If the project or employee ID is invalid/does not exist.
+    *   `400 Bad Request`: If the employee is already mapped to the project.
+
+### 6.2. Remove Employee from Project
+*   **HTTP Method:** `DELETE`
+*   **Path:** `/{projectId}/employees/{employeeId}`
+*   **Path Parameters:**
+    *   `projectId` (Long, Required): Database ID of the project.
+    *   `employeeId` (Long, Required): Database ID of the employee to remove.
+*   **Success Response (200 OK):**
+    *   *Body:* `"Employee Removed from Project"`
+*   **Error Response (404 Not Found):** If the employee was not mapped to this project or either ID is invalid.
+
+### 6.3. Get All Project Members
+*   **HTTP Method:** `GET`
+*   **Path:** `/{projectId}/employees`
+*   **Path Parameters:**
+    *   `projectId` (Long, Required): Database ID of the project.
+*   **Success Response (200 OK):** Returns a list of `Employee` JSON objects belonging to the project.
