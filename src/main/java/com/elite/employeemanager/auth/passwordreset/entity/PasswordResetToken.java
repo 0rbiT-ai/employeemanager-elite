@@ -34,7 +34,7 @@ public class PasswordResetToken {
 
     @Builder.Default
     @Column(nullable = false)
-    private boolean isUsed = false;
+    private Boolean isUsed = false;
 
     @Builder.Default
     @Column(nullable = false)
