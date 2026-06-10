@@ -4,6 +4,7 @@ import com.elite.employeemanager.auth.user.entity.User;
 import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.employee.repository.EmployeeRepository;
 import com.elite.employeemanager.team.entity.Team;
+import com.elite.employeemanager.team.repository.TeamEmployeeRepository;
 import com.elite.employeemanager.team.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ public class TeamService {
 
     private final TeamRepository teamRepository;
     private final EmployeeRepository employeeRepository;
+    private final TeamEmployeeRepository teamEmployeeRepository;
 
     private User getCurrentUser(){
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -118,6 +120,9 @@ public class TeamService {
     @Transactional
     public void deleteTeamById(Long id,String reason){
         Team existingTeam = getTeamById(id);
+
+        teamEmployeeRepository.deleteByTeam(existingTeam);
+
         existingTeam.setIsDeleted(true);
         existingTeam.setDeletedAt(LocalDateTime.now());
         if (getCurrentUser()!=null){

@@ -2,6 +2,7 @@ package com.elite.employeemanager.project.service;
 
 import com.elite.employeemanager.auth.user.entity.User;
 import com.elite.employeemanager.project.entity.Project;
+import com.elite.employeemanager.project.repository.ProjectEmployeeRepository;
 import com.elite.employeemanager.project.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,7 @@ import java.util.List;
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final ProjectEmployeeRepository projectEmployeeRepository;
 
     private User getCurrentUser(){
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -106,6 +108,9 @@ public class ProjectService {
     @Transactional
     public void deleteProjectById(Long id, String reason){
         Project existingProject = getProjectById(id);
+
+        projectEmployeeRepository.deleteByProject(existingProject);
+
         existingProject.setIsDeleted(true);
         existingProject.setDeletedAt(LocalDateTime.now());
         if (getCurrentUser()!=null){

@@ -15,4 +15,7 @@ public interface TeamEmployeeRepository extends JpaRepository<TeamEmployee, Long
     List<TeamEmployee> findByTeam(Team team);
     List<TeamEmployee> findByEmployee(Employee employee);
 
+    void deleteByEmployee(Employee employee);
+
+    void deleteByTeam(Team existingTeam);
 }

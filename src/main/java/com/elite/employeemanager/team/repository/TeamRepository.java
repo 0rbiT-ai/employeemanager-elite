@@ -1,9 +1,12 @@
 package com.elite.employeemanager.team.repository;
 
+import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.team.entity.Team;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TeamRepository extends JpaRepository<Team,Long> {
+    boolean existsByLead(Employee employee);
+    boolean existsBySubLead(Employee employee);
 }

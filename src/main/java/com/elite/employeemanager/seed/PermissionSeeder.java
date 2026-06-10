@@ -29,6 +29,7 @@ public class PermissionSeeder implements CommandLineRunner {
         Permission timesheetApprove = seedPermission("TIMESHEET_APPROVE", "Approve and reject timesheets");
         Permission timesheetSubmit = seedPermission("TIMESHEET_SUBMIT", "Submit weekly timesheets");
         Permission teamManage = seedPermission("TEAM_MANAGE", "Create teams and assign/manage members");
+        Permission projectManage = seedPermission("PROJECT_MANAGE", "Create projects and assign/manage members");
         // 2. Fetch Roles
         Role admin = roleRepository.findByRoleCode("ADMIN").orElseThrow();
         Role teamLead = roleRepository.findByRoleCode("TEAM_LEAD").orElseThrow();
@@ -42,12 +43,14 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(admin, timesheetApprove);
         mapPermissionToRole(admin, timesheetSubmit);
         mapPermissionToRole(admin, teamManage);
+        mapPermissionToRole(admin, projectManage);
         // Team Lead gets task management and approval rights
         mapPermissionToRole(teamLead, taskCreate);
         mapPermissionToRole(teamLead, taskAssign);
         mapPermissionToRole(teamLead, timesheetApprove);
         mapPermissionToRole(teamLead, timesheetSubmit);
         mapPermissionToRole(teamLead,teamManage);
+        mapPermissionToRole(teamLead, projectManage);
         // Employee can only submit timesheets
         mapPermissionToRole(employee, timesheetSubmit);
     }

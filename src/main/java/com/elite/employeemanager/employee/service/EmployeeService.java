@@ -8,6 +8,11 @@ import com.elite.employeemanager.auth.user.entity.User;
 import com.elite.employeemanager.auth.user.repository.UserRepository;
 import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.employee.repository.EmployeeRepository;
+import com.elite.employeemanager.project.repository.ProjectEmployeeRepository;
+import com.elite.employeemanager.project.service.ProjectEmployeeService;
+import com.elite.employeemanager.team.repository.TeamEmployeeRepository;
+import com.elite.employeemanager.team.repository.TeamRepository;
+import com.elite.employeemanager.team.service.TeamEmployeeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -29,6 +34,9 @@ public class EmployeeService {
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
+    private final TeamEmployeeRepository teamEmployeeRepository;
+    private final ProjectEmployeeRepository projectEmployeeRepository;
+    private final TeamRepository teamRepository;
 
     private void populateRoles(Employee employee){
         if (employee==null||employee.getUser()==null) return;
@@ -263,6 +271,15 @@ public class EmployeeService {
 
     public void deleteEmployeeById(Long id, String reason){
         Employee employee = getEmployeeById(id);
+
+        boolean isLead = teamRepository.existsByLead(employee);
+        boolean isSubLead = teamRepository.existsBySubLead(employee);
+        if (isLead||isSubLead){
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Cannot delete employee because they are currently a lead or sub-lead of a team. Please reassign the team leadership first.");
+        }
+        projectEmployeeRepository.deleteByEmployee(employee);
+        teamEmployeeRepository.deleteByEmployee(employee);
 
         employee.setIsDeleted(true);
         employee.setDeletedAt(LocalDateTime.now());
