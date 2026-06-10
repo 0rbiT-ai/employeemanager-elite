@@ -118,20 +118,21 @@ public class AuthenticationService {
     }
 
     public void forgotPassword(String email){
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"User not found"));
-        passwordResetTokenRepository.deleteByUser(user);
-        String token = UUID.randomUUID().toString();
+        userRepository.findByEmail(email).ifPresent(user->{
+            passwordResetTokenRepository.deleteByUser(user);
 
-        PasswordResetToken passwordResetToken = PasswordResetToken.builder()
-                .user(user)
-                .token(token)
-                .expiresAt(LocalDateTime.now().plusMinutes(10))
-                .build();
+            String token = UUID.randomUUID().toString();
 
-        passwordResetTokenRepository.save(passwordResetToken);
+            PasswordResetToken passwordResetToken = PasswordResetToken.builder()
+                    .user(user)
+                    .token(token)
+                    .expiresAt(LocalDateTime.now().plusMinutes(10))
+                    .build();
 
-        passwordResetEmailService.sendPasswordResetEmail(user.getEmail(),token);
+            passwordResetTokenRepository.save(passwordResetToken);
+
+            passwordResetEmailService.sendPasswordResetEmail(user.getEmail(),token);
+        });
     }
 
     @Transactional
@@ -139,8 +140,8 @@ public class AuthenticationService {
         PasswordResetToken passwordResetToken = passwordResetTokenRepository.findByToken(token)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid Password Reset Token"));
 
-        if (passwordResetToken.getIsUsed()){
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Password Reset Token Already Used");
+        if (Boolean.TRUE.equals(passwordResetToken.getIsUsed())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password Reset Token Already Used");
         }
 
         if (passwordResetToken.getExpiresAt().isBefore(LocalDateTime.now())) {
@@ -151,6 +152,7 @@ public class AuthenticationService {
 
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         passwordResetToken.setIsUsed(true);
+        passwordResetToken.setExpiresAt(LocalDateTime.now());
         userRepository.save(user);
         passwordResetTokenRepository.save(passwordResetToken);
     }
