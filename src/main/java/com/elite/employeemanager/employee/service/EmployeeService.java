@@ -10,6 +10,9 @@ import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.employee.repository.EmployeeRepository;
 import com.elite.employeemanager.project.repository.ProjectEmployeeRepository;
 import com.elite.employeemanager.project.service.ProjectEmployeeService;
+import com.elite.employeemanager.task.entity.Task;
+import com.elite.employeemanager.task.repository.TaskRepository;
+import com.elite.employeemanager.task.service.TaskService;
 import com.elite.employeemanager.team.repository.TeamEmployeeRepository;
 import com.elite.employeemanager.team.repository.TeamRepository;
 import com.elite.employeemanager.team.service.TeamEmployeeService;
@@ -37,6 +40,8 @@ public class EmployeeService {
     private final TeamEmployeeRepository teamEmployeeRepository;
     private final ProjectEmployeeRepository projectEmployeeRepository;
     private final TeamRepository teamRepository;
+    private final TaskRepository taskRepository;
+    private final TaskService taskService;
 
     private void populateRoles(Employee employee){
         if (employee==null||employee.getUser()==null) return;
@@ -55,6 +60,7 @@ public class EmployeeService {
         return null;
     }
 
+    @Transactional
     public Employee addEmployee(Employee employee){
 
         Optional<Employee> existingEmployeeOpt = employeeRepository.findAnyByWorkEmail(employee.getWorkEmail());
@@ -179,6 +185,7 @@ public class EmployeeService {
         return employee;
     }
 
+    @Transactional
     public Employee updateEmployeeById(Long id, Employee updateEmployee) {
         Employee employee = getEmployeeById(id);
 
@@ -269,6 +276,7 @@ public class EmployeeService {
         return employeeRepository.save(employee);
     }
 
+    @Transactional
     public void deleteEmployeeById(Long id, String reason){
         Employee employee = getEmployeeById(id);
 
@@ -280,6 +288,9 @@ public class EmployeeService {
         }
         projectEmployeeRepository.deleteByEmployee(employee);
         teamEmployeeRepository.deleteByEmployee(employee);
+
+        List<Task> tasks = taskRepository.findByAssignedTo(employee);
+        tasks.forEach(task -> taskService.unassignTaskById(task.getId()));
 
         employee.setIsDeleted(true);
         employee.setDeletedAt(LocalDateTime.now());

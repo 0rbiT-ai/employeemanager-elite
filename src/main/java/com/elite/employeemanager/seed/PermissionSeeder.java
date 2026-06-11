@@ -25,6 +25,7 @@ public class PermissionSeeder implements CommandLineRunner {
         Permission userCreate = seedPermission("USER_CREATE", "Create system user credentials");
         Permission empManage = seedPermission("EMPLOYEE_MANAGE", "Onboard and edit employee profiles");
         Permission taskCreate = seedPermission("TASK_CREATE", "Create task tickets");
+        Permission taskView = seedPermission("TASK_VIEW", "View task tickets");
         Permission taskAssign = seedPermission("TASK_ASSIGN", "Assign tasks to employees");
         Permission timesheetApprove = seedPermission("TIMESHEET_APPROVE", "Approve and reject timesheets");
         Permission timesheetSubmit = seedPermission("TIMESHEET_SUBMIT", "Submit weekly timesheets");
@@ -39,6 +40,7 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(admin, userCreate);
         mapPermissionToRole(admin, empManage);
         mapPermissionToRole(admin, taskCreate);
+        mapPermissionToRole(admin, taskView);
         mapPermissionToRole(admin, taskAssign);
         mapPermissionToRole(admin, timesheetApprove);
         mapPermissionToRole(admin, timesheetSubmit);
@@ -46,6 +48,7 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(admin, projectManage);
         // Team Lead gets task management and approval rights
         mapPermissionToRole(teamLead, taskCreate);
+        mapPermissionToRole(teamLead, taskView);
         mapPermissionToRole(teamLead, taskAssign);
         mapPermissionToRole(teamLead, timesheetApprove);
         mapPermissionToRole(teamLead, timesheetSubmit);
