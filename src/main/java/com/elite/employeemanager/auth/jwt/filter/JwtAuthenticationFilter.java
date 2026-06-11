@@ -4,6 +4,7 @@ import com.elite.employeemanager.auth.jwt.service.JwtService;
 import com.elite.employeemanager.auth.user.service.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -24,12 +25,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+        /*
         final String authHeader = request.getHeader("Authorization");
         if(authHeader==null||!authHeader.startsWith("Bearer ")){
             filterChain.doFilter(request,response);
             return;
         }
-        final String jwt = authHeader.substring(7);
+         */
+        String jwt=null;
+
+        Cookie[] cookies = request.getCookies();
+        if (cookies!=null){
+            for (Cookie cookie : cookies) {
+                if ("jwtToken".equals(cookie.getName())) {
+                    jwt = cookie.getValue();
+                    break;
+                }
+            }
+        }
+
+        if (jwt==null){
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         try {
             final String username = jwtService.extractUsername(jwt);
             if(username!=null && SecurityContextHolder.getContext().getAuthentication()==null){
@@ -40,7 +59,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                 }
             }
-        } catch (Exception e) {}
+        } catch (Exception e) {e.printStackTrace();}
         filterChain.doFilter(request,response);
     }
 }

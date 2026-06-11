@@ -2,6 +2,7 @@ package com.elite.employeemanager.auth.jwt.service;
 
 import com.elite.employeemanager.auth.jwt.dto.AuthenticationResponse;
 import com.elite.employeemanager.auth.jwt.dto.LoginRequest;
+import com.elite.employeemanager.auth.jwt.dto.LoginResponse;
 import com.elite.employeemanager.auth.jwt.dto.RefreshTokenRequest;
 import com.elite.employeemanager.auth.mapping.entity.RoleComponent;
 import com.elite.employeemanager.auth.mapping.entity.UserRole;
@@ -19,6 +20,7 @@ import com.elite.employeemanager.auth.user.repository.UserRepository;
 import com.elite.employeemanager.auth.user.service.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -74,14 +76,24 @@ public class AuthenticationService {
                 .toList();
     }
 
-    public AuthenticationResponse login(LoginRequest request){
+    public LoginResponse login(LoginRequest request){
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(),request.getPassword()));
         User user = (User) customUserDetailsService.loadUserByUsername(request.getEmail());
         user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
         String jwt = jwtService.generateToken(user);
+
+        ResponseCookie cookie = ResponseCookie.from("jwtToken",jwt)
+                .httpOnly(true)
+                .secure(false) // has to be true for production
+                .path("/")
+                .maxAge(60 * 60)
+                .sameSite("Lax") // has to be None for production
+                .build();
+
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
-        return AuthenticationResponse.builder()
-                .token(jwt)
+
+        AuthenticationResponse authenticationResponse = AuthenticationResponse.builder()
                 .refresh(refreshToken.getToken())
                 .user(UserDto.builder()
                         .id(user.getId())
@@ -92,17 +104,28 @@ public class AuthenticationService {
                         .build()
                 )
                 .build();
+
+        return LoginResponse.builder()
+                .authenticationResponse(authenticationResponse)
+                .cookie(cookie)
+                .build();
     }
 
-    public AuthenticationResponse refresh(RefreshTokenRequest request) {
+    public LoginResponse refresh(RefreshTokenRequest request) {
         return refreshTokenService.getByToken(request.getRefreshToken())
                 .map(refreshTokenService::verifyExpiration)
                 .map(RefreshToken::getUser)
                 .map(user -> (User) customUserDetailsService.loadUserByUsername(user.getEmail()))
                 .map(user -> {
                     String newAccessToken = jwtService.generateToken(user);
-                    return new AuthenticationResponse(
-                            newAccessToken,
+                    ResponseCookie cookie = ResponseCookie.from("jwtToken",newAccessToken)
+                            .httpOnly(true)
+                            .secure(false)
+                            .path("/")
+                            .maxAge(60 * 60)
+                            .sameSite("Lax")
+                            .build();
+                    AuthenticationResponse authenticationResponse = new AuthenticationResponse(
                             request.getRefreshToken(),
                             UserDto.builder()
                                     .id(user.getId())
@@ -110,8 +133,12 @@ public class AuthenticationService {
                                     .roles(getUserRoles(user))
                                     .permissions(getUserPermissions(user))
                                     .components(getUserComponents(user))
-                                    .build()
-                    );
+                                    .build());
+                    return LoginResponse.builder()
+                            .authenticationResponse(authenticationResponse)
+                            .cookie(cookie)
+                            .build();
+
                 }).orElseThrow(()->{
                     throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"Invalid Refresh Token");
                 });

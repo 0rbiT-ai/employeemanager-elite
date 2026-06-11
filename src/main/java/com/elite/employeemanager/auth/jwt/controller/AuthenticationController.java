@@ -2,11 +2,13 @@ package com.elite.employeemanager.auth.jwt.controller;
 
 import com.elite.employeemanager.auth.jwt.dto.AuthenticationResponse;
 import com.elite.employeemanager.auth.jwt.dto.LoginRequest;
+import com.elite.employeemanager.auth.jwt.dto.LoginResponse;
 import com.elite.employeemanager.auth.jwt.dto.RefreshTokenRequest;
 import com.elite.employeemanager.auth.jwt.service.AuthenticationService;
 import com.elite.employeemanager.auth.passwordreset.dto.ForgotPasswordRequest;
 import com.elite.employeemanager.auth.passwordreset.dto.ResetPasswordRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,12 +24,36 @@ public class AuthenticationController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthenticationResponse> login(@RequestBody LoginRequest request){
-        return ResponseEntity.ok(authenticationService.login(request));
+
+        LoginResponse loginResponse = authenticationService.login(request);
+
+        return ResponseEntity.ok()
+                .header("Set-Cookie", loginResponse.getCookie().toString())
+                .body(loginResponse.getAuthenticationResponse());
     }
 
     @PostMapping("/refresh")
     public ResponseEntity<AuthenticationResponse> refresh(@RequestBody RefreshTokenRequest request){
-        return ResponseEntity.ok(authenticationService.refresh(request));
+
+        LoginResponse loginResponse = authenticationService.refresh(request);
+
+        return ResponseEntity.ok()
+                .header("Set-Cookie",loginResponse.getCookie().toString())
+                .body(loginResponse.getAuthenticationResponse());
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout() {
+        ResponseCookie cookie = ResponseCookie.from("jwtToken", "")
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Lax")
+                .build();
+        return ResponseEntity.ok()
+                .header("Set-Cookie", cookie.toString())
+                .body("Logged out");
     }
 
     @PostMapping("/forgot-password")
