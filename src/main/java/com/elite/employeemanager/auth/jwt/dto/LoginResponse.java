@@ -13,4 +13,5 @@ import org.springframework.http.ResponseCookie;
 public class LoginResponse {
     private AuthenticationResponse authenticationResponse;
     private ResponseCookie cookie;
+    private ResponseCookie refreshCookie;
 }

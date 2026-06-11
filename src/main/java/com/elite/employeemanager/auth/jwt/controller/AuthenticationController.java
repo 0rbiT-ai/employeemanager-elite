@@ -3,11 +3,17 @@ package com.elite.employeemanager.auth.jwt.controller;
 import com.elite.employeemanager.auth.jwt.dto.AuthenticationResponse;
 import com.elite.employeemanager.auth.jwt.dto.LoginRequest;
 import com.elite.employeemanager.auth.jwt.dto.LoginResponse;
-import com.elite.employeemanager.auth.jwt.dto.RefreshTokenRequest;
+
 import com.elite.employeemanager.auth.jwt.service.AuthenticationService;
 import com.elite.employeemanager.auth.passwordreset.dto.ForgotPasswordRequest;
 import com.elite.employeemanager.auth.passwordreset.dto.ResetPasswordRequest;
+
+import com.elite.employeemanager.auth.refreshtoken.service.RefreshTokenService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,19 +27,23 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
+    private final RefreshTokenService refreshTokenService;
 
     @PostMapping("/login")
     public ResponseEntity<AuthenticationResponse> login(@RequestBody LoginRequest request){
 
         LoginResponse loginResponse = authenticationService.login(request);
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Set-Cookie", loginResponse.getCookie().toString());
+        headers.add("Set-Cookie", loginResponse.getRefreshCookie().toString());
 
         return ResponseEntity.ok()
-                .header("Set-Cookie", loginResponse.getCookie().toString())
+                .headers(headers)
                 .body(loginResponse.getAuthenticationResponse());
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<AuthenticationResponse> refresh(@RequestBody RefreshTokenRequest request){
+    public ResponseEntity<AuthenticationResponse> refresh(HttpServletRequest request){
 
         LoginResponse loginResponse = authenticationService.refresh(request);
 
@@ -43,7 +53,25 @@ public class AuthenticationController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<String> logout() {
+    public ResponseEntity<String> logout(HttpServletRequest request) {
+
+        String refreshToken = null;
+
+        Cookie[] cookies = request.getCookies();
+
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("refreshToken".equals(cookie.getName())) {
+                    refreshToken = cookie.getValue();
+                    break;
+                }
+            }
+        }
+
+        if (refreshToken!=null){
+            refreshTokenService.deleteByToken(refreshToken);
+        }
+
         ResponseCookie cookie = ResponseCookie.from("jwtToken", "")
                 .httpOnly(true)
                 .secure(false)
@@ -51,8 +79,21 @@ public class AuthenticationController {
                 .maxAge(0)
                 .sameSite("Lax")
                 .build();
+
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Lax")
+                .build();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Set-Cookie", cookie.toString());
+        headers.add("Set-Cookie", refreshCookie.toString());
+
         return ResponseEntity.ok()
-                .header("Set-Cookie", cookie.toString())
+                .headers(headers)
                 .body("Logged out");
     }
 

@@ -2,10 +2,12 @@ package com.elite.employeemanager.auth.refreshtoken.service;
 
 import com.elite.employeemanager.auth.refreshtoken.entity.RefreshToken;
 import com.elite.employeemanager.auth.refreshtoken.repository.RefreshTokenRepository;
+import com.elite.employeemanager.auth.user.entity.User;
 import com.elite.employeemanager.auth.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -48,5 +50,14 @@ public class RefreshTokenService {
 
     public Optional<RefreshToken> getByToken(String token){
         return refreshTokenRepository.findByToken(token);
+    }
+
+    @Transactional
+    public void deleteByToken(String token){
+        refreshTokenRepository.deleteByToken(token);
+    }
+    @Transactional
+    public void deleteByUser(User user){
+        refreshTokenRepository.deleteByUser(user);
     }
 }

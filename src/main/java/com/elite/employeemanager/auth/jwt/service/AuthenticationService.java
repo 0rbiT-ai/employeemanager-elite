@@ -3,7 +3,6 @@ package com.elite.employeemanager.auth.jwt.service;
 import com.elite.employeemanager.auth.jwt.dto.AuthenticationResponse;
 import com.elite.employeemanager.auth.jwt.dto.LoginRequest;
 import com.elite.employeemanager.auth.jwt.dto.LoginResponse;
-import com.elite.employeemanager.auth.jwt.dto.RefreshTokenRequest;
 import com.elite.employeemanager.auth.mapping.entity.RoleComponent;
 import com.elite.employeemanager.auth.mapping.entity.UserRole;
 import com.elite.employeemanager.auth.mapping.repository.RoleComponentRepository;
@@ -18,10 +17,11 @@ import com.elite.employeemanager.auth.user.dto.UserDto;
 import com.elite.employeemanager.auth.user.entity.User;
 import com.elite.employeemanager.auth.user.repository.UserRepository;
 import com.elite.employeemanager.auth.user.service.CustomUserDetailsService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -82,6 +82,7 @@ public class AuthenticationService {
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
         String jwt = jwtService.generateToken(user);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
 
         ResponseCookie cookie = ResponseCookie.from("jwtToken",jwt)
                 .httpOnly(true)
@@ -91,10 +92,15 @@ public class AuthenticationService {
                 .sameSite("Lax") // has to be None for production
                 .build();
 
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken",refreshToken.getToken())
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .maxAge(3 * 60 * 60)
+                .sameSite("Lax")
+                .build();
 
         AuthenticationResponse authenticationResponse = AuthenticationResponse.builder()
-                .refresh(refreshToken.getToken())
                 .user(UserDto.builder()
                         .id(user.getId())
                         .email(user.getUsername())
@@ -108,11 +114,32 @@ public class AuthenticationService {
         return LoginResponse.builder()
                 .authenticationResponse(authenticationResponse)
                 .cookie(cookie)
+                .refreshCookie(refreshCookie)
                 .build();
     }
 
-    public LoginResponse refresh(RefreshTokenRequest request) {
-        return refreshTokenService.getByToken(request.getRefreshToken())
+    public LoginResponse refresh(HttpServletRequest request) {
+        String refreshToken = null;
+
+        Cookie[] cookies = request.getCookies();
+
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("refreshToken".equals(cookie.getName())) {
+                    refreshToken = cookie.getValue();
+                    break;
+                }
+            }
+        }
+
+        if (refreshToken==null){
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Refresh Token Missing"
+            );
+        }
+
+        return refreshTokenService.getByToken(refreshToken)
                 .map(refreshTokenService::verifyExpiration)
                 .map(RefreshToken::getUser)
                 .map(user -> (User) customUserDetailsService.loadUserByUsername(user.getEmail()))
@@ -126,7 +153,6 @@ public class AuthenticationService {
                             .sameSite("Lax")
                             .build();
                     AuthenticationResponse authenticationResponse = new AuthenticationResponse(
-                            request.getRefreshToken(),
                             UserDto.builder()
                                     .id(user.getId())
                                     .email(user.getUsername())
@@ -144,6 +170,7 @@ public class AuthenticationService {
                 });
     }
 
+    @Transactional
     public void forgotPassword(String email){
         userRepository.findByEmail(email).ifPresent(user->{
             passwordResetTokenRepository.deleteByUser(user);
