@@ -12,7 +12,7 @@ LOCAL_DB_PASSWORD = your_postgres_password\
 JWT_SECRET = your_hs512_hex_jwt_secret\
 MAIL_USERNAME = your_email_username_here\
 MAIL_PASSWORD = your_email_password_here\
-FRONTEND_URL = http://localhost:5173
+FRONTEND_URL = your_frontend_url
 
 ## 3. run app :
 
@@ -26,15 +26,16 @@ FRONTEND_URL = http://localhost:5173
 *   **Base URL:** `http://localhost:8080/api/v1`
 *   **Default Headers:**
     *   `Content-Type: application/json`
-    *   Protected endpoints require: `Authorization: Bearer <access_token>`
+*   **Authentication:**
+    *   Protected endpoints require HTTPOnly cookies: `jwtToken` (JWT Access Token) and `refreshToken` (Refresh Token UUID).
 
 ## Role-Based Access Mapping
 Access to protected endpoints is governed by authorities compiled from user roles on login:
 
 | Role Code | Role Name | Granted Authorities / Permissions | Allowed Modules / Endpoints |
 | :--- | :--- | :--- | :--- |
-| **`ADMIN`** | Admin | `EMPLOYEE_MANAGE`, `TEAM_MANAGE`, `PROJECT_MANAGE`, `USER_CREATE`, `TASK_CREATE`, `TASK_ASSIGN`, `TIMESHEET_APPROVE`, `TIMESHEET_SUBMIT` | **All Endpoints** (Authentication, Employees, Teams, Team Members, Projects) |
-| **`TEAM_LEAD`** | Team Lead | `TEAM_MANAGE`, `PROJECT_MANAGE`, `TASK_CREATE`, `TASK_ASSIGN`, `TIMESHEET_APPROVE`, `TIMESHEET_SUBMIT` | Authentication, Teams, Team Members, Projects (No Employee Management) |
+| **`ADMIN`** | Admin | `EMPLOYEE_MANAGE`, `TEAM_MANAGE`, `PROJECT_MANAGE`, `USER_CREATE`, `TASK_CREATE`, `TASK_VIEW`, `TASK_ASSIGN`, `TIMESHEET_APPROVE`, `TIMESHEET_SUBMIT` | **All Endpoints** (Authentication, Employees, Teams, Team Members, Projects) |
+| **`TEAM_LEAD`** | Team Lead | `TEAM_MANAGE`, `PROJECT_MANAGE`, `TASK_CREATE`, `TASK_VIEW`, `TASK_ASSIGN`, `TIMESHEET_APPROVE`, `TIMESHEET_SUBMIT` | Authentication, Teams, Team Members, Projects (No Employee Management) |
 | **`SUB_LEAD`** | Sub Lead | `TIMESHEET_SUBMIT` (No default administrative permissions) | Authentication only (No Teams/Employee management unless assigned manually) |
 | **`EMPLOYEE`** | Employee | `TIMESHEET_SUBMIT` | Authentication only |
 
@@ -54,11 +55,12 @@ Access to protected endpoints is governed by authorities compiled from user role
       "password": "employee123"
     }
     ```
+*   **Cookies Set (Set-Cookie Response Headers):**
+    *   `jwtToken`: HTTPOnly, sameSite="Lax", path="/" (containing JWT Access Token)
+    *   `refreshToken`: HTTPOnly, sameSite="Lax", path="/" (containing Refresh Token UUID)
 *   **Success Response (200 OK - [AuthenticationResponse](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/auth/jwt/dto/AuthenticationResponse.java)):**
     ```json
     {
-      "token": "eyJhbGciOiJIUzI1NiIsIn...", // JWT Access Token
-      "refresh": "a189f38f-dc42...", // Refresh Token UUID
       "user": {
         "id": 2,
         "email": "employee@teamops.com",
@@ -72,17 +74,24 @@ Access to protected endpoints is governed by authorities compiled from user role
 ### 1.2. Refresh Access Token
 *   **HTTP Method:** `POST`
 *   **Path:** `/refresh`
-*   **Access Allowed:** Public (All Roles)
-*   **Request Body ([RefreshTokenRequest](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/auth/jwt/dto/RefreshTokenRequest.java)):**
-    ```json
-    {
-      "refreshToken": "a189f38f-dc42..."
-    }
-    ```
+*   **Access Allowed:** Public (All Roles, reads the `refreshToken` HTTPOnly Cookie)
+*   **Request Body:** None
+*   **Cookies Set (Set-Cookie Response Header):**
+    *   `jwtToken`: HTTPOnly, sameSite="Lax", path="/" (updated JWT Access Token)
 *   **Success Response (200 OK):**
-    *   Returns updated access token (same response format as `POST /login`).
+    *   Returns updated user information in `AuthenticationResponse` format (same format as `POST /login`).
 
-### 1.3. Forgot Password
+### 1.3. User Logout
+*   **HTTP Method:** `POST`
+*   **Path:** `/logout`
+*   **Access Allowed:** Public (All Roles, deletes the refresh token from database)
+*   **Request Body:** None
+*   **Cookies Set (Set-Cookie Response Headers):**
+    *   Clears both `jwtToken` and `refreshToken` (sets `maxAge` to `0`).
+*   **Success Response (200 OK):**
+    *   *Body:* `"Logged out"`
+
+### 1.4. Forgot Password
 *   **HTTP Method:** `POST`
 *   **Path:** `/forgot-password`
 *   **Access Allowed:** Public (All Roles)
@@ -95,7 +104,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **Success Response (200 OK):**
     *   *Body:* `"If the email exists, a password reset link has been sent."`
 
-### 1.4. Reset Password
+### 1.5. Reset Password
 *   **HTTP Method:** `POST`
 *   **Path:** `/reset-password`
 *   **Access Allowed:** Public (All Roles)
@@ -109,7 +118,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **Success Response (200 OK):**
     *   *Body:* `"Password Reset Successfully"`
 
----
+-----
 
 ## 2. Employee Management Module
 **Base Path:** `/api/v1/employees` (Requires `Authorization` header)
@@ -255,6 +264,66 @@ Access to protected endpoints is governed by authorities compiled from user role
         "createdAt": "2026-06-09T17:00:00",
         "createdBy": 1,
         "updatedAt": "2026-06-09T17:00:00",
+        "updatedBy": null,
+        "deletedAt": null,
+        "deletedBy": null,
+        "deleteReason": null
+      }
+    ]
+    ```
+*   **Error Response (404 Not Found):** Returned if the employee ID is invalid or does not exist.
+
+### 2.8. Get Tasks by Employee ID
+*   **HTTP Method:** `GET`
+*   **Path:** `/{id}/tasks` (Full path: `/api/v1/employees/{id}/tasks`)
+*   **Access Allowed Roles:** **`ADMIN`** and **`TEAM_LEAD`** (checks `EMPLOYEE_MANAGE` or `TASK_VIEW` authority)
+*   **Description:** Retrieves a list of all tasks assigned to a specific employee.
+*   **Path Parameters:**
+    *   `id` (Long, Required): Database ID of the employee.
+*   **Request Payload:** None
+*   **Success Response (200 OK):** Returns a JSON Array of [Task](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/Task.java) objects:
+    ```json
+    [
+      {
+        "id": 1,
+        "taskNumber": "TSK-0001",
+        "project": {
+          "id": 1,
+          "projectName": "Elite Portal",
+          "description": "Enterprise Employee Resource Management",
+          "clientName": "Acme Corp",
+          "colorHex": "#8ECAE6",
+          "startDate": "2026-06-10",
+          "endDate": "2026-12-31",
+          "status": "ACTIVE",
+          "progressPercentage": 0
+        },
+        "title": "Setup database indexes",
+        "description": "Create partial indexes for soft-delete support",
+        "taskType": "TASK",
+        "priority": "HIGH",
+        "status": "IN_PROGRESS",
+        "etaHours": 8.00,
+        "etaDate": "2026-06-15",
+        "originalEtaDate": "2026-06-15",
+        "extendedEtaDate": null,
+        "bugNumber": null,
+        "assignedTo": {
+          "id": 2,
+          "name": "Jane Doe",
+          "workEmail": "jane.doe@teamops.com",
+          "personalEmail": "jane.doe.personal@gmail.com",
+          "phone": "+91 99888 77665",
+          "designation": "Software Engineer",
+          "joiningDate": "2026-06-09",
+          "status": "ACTIVE",
+          "notificationPreference": "ALL",
+          "profileImage": "https://example.com/avatar.jpg"
+        },
+        "epic": "Sprint 1",
+        "createdAt": "2026-06-11T12:00:00",
+        "createdBy": 1,
+        "updatedAt": "2026-06-11T12:00:00",
         "updatedBy": null,
         "deletedAt": null,
         "deletedBy": null,
