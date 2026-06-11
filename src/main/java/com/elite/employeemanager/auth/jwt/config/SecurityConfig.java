@@ -4,6 +4,7 @@ import com.elite.employeemanager.auth.jwt.filter.JwtAuthenticationFilter;
 import com.elite.employeemanager.auth.user.repository.UserRepository;
 import com.elite.employeemanager.auth.user.service.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -36,6 +37,8 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter authenticationFilter;
     private final CustomUserDetailsService customUserDetailsService;
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @Bean
     public PasswordEncoder passwordEncoder(){
@@ -75,7 +78,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         // Allow your frontend origin
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        configuration.setAllowedOrigins(List.of(frontendUrl));
 
         // Allowed HTTP methods
         configuration.setAllowedMethods(List.of("*"));
