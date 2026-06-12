@@ -34,6 +34,9 @@ public class TeamService {
 
     @Transactional
     public Team addTeam(Team team){
+        if (team.getStatus() == null) {
+            team.setStatus("ACTIVE");
+        }
 
         if (team.getLead() == null) {
             throw new ResponseStatusException(

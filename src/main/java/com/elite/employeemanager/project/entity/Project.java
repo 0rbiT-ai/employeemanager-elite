@@ -37,24 +37,21 @@ public class Project extends AuditSoftDeleteEntity {
     @Column(nullable = false)
     private String clientName;
 
-    @Builder.Default
     @Column(length = 7,nullable = false)
     @Pattern(regexp = "^#[A-Fa-f0-9]{6}$", message = "color must be a valid hex code")
-    private String colorHex="#8ECAE6";
+    private String colorHex;
 
     @Column(nullable = false)
     private LocalDate startDate;
 
     private LocalDate endDate;
 
-    @Builder.Default
     @Column(nullable = false)
-    private String status="ACTIVE";
+    private String status;
 
     @Min(0)
     @Max(100)
-    @Builder.Default
     @Column(nullable = false)
-    private Integer progressPercentage=0;
+    private Integer progressPercentage;
 
 }

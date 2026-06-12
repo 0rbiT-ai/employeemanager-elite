@@ -38,6 +38,9 @@ public class TaskService {
     }
 
     public Task createTask(Task task){
+        if (task.getEtaHours() == null) {
+            task.setEtaHours(new java.math.BigDecimal("0.00"));
+        }
         if (task.getTaskNumber()==null || task.getTaskNumber().isBlank()){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Task Number is required");
         }

@@ -36,7 +36,6 @@ public class Employee extends AuditSoftDeleteEntity {
     @Column(nullable = false)
     private String workEmail;
 
-    @Column(nullable = false)
     private String personalEmail;
 
     @Column(nullable = false)
@@ -56,13 +55,11 @@ public class Employee extends AuditSoftDeleteEntity {
     @Column(nullable = false)
     private LocalDate joiningDate;
 
-    @Builder.Default
     @Column(nullable = false)
-    private String status="ACTIVE";
+    private String status;
 
-    @Builder.Default
     @Column(nullable = false)
-    private String notificationPreference="ALL";
+    private String notificationPreference;
 
     private String profileImage;
 

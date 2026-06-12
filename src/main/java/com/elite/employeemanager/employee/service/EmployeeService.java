@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -62,7 +63,15 @@ public class EmployeeService {
 
     @Transactional
     public Employee addEmployee(Employee employee){
-
+        if (employee.getJoiningDate() == null) {
+            employee.setJoiningDate(LocalDate.now());
+        }
+        if (employee.getStatus() == null) {
+            employee.setStatus("ACTIVE");
+        }
+        if (employee.getNotificationPreference() == null) {
+            employee.setNotificationPreference("ALL");
+        }
         Optional<Employee> existingEmployeeOpt = employeeRepository.findAnyByWorkEmail(employee.getWorkEmail());
         if (existingEmployeeOpt.isPresent()) {
             Employee existingEmployee = existingEmployeeOpt.get();

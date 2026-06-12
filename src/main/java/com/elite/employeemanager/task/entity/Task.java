@@ -43,13 +43,11 @@ public class Task extends AuditSoftDeleteEntity {
     @Column(nullable = false)
     private String priority;
 
-    @Builder.Default
     @Column(nullable = false)
-    private String status="OPEN";
+    private String status;
 
-    @Builder.Default
     @Column(nullable = false)
-    private BigDecimal etaHours= new BigDecimal("0.00");
+    private BigDecimal etaHours;
 
     @Column(nullable = false)
     private LocalDate etaDate;

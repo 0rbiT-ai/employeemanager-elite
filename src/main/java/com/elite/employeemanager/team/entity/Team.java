@@ -41,8 +41,7 @@ public class Team extends AuditSoftDeleteEntity {
     @Column(name = "teams_channel_id")
     private String teamsChannelId;
 
-    @Builder.Default
     @Column(nullable = false)
-    private String status="ACTIVE";
+    private String status;
 
 }

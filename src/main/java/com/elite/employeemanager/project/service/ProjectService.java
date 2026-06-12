@@ -32,6 +32,15 @@ public class ProjectService {
 
     @Transactional
     public Project addProject(Project project){
+        if (project.getColorHex() == null) {
+            project.setColorHex("#8ECAE6");
+        }
+        if (project.getStatus() == null) {
+            project.setStatus("ACTIVE");
+        }
+        if (project.getProgressPercentage() == null) {
+            project.setProgressPercentage(0);
+        }
 
         if (project.getProjectName()==null || project.getProjectName().isBlank()){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Project Name is required");
