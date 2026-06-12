@@ -28,6 +28,7 @@ public class TaskService {
     private final EmployeeRepository employeeRepository;
     private final ProjectEmployeeRepository projectEmployeeRepository;
     private final TaskCommentRepository taskCommentRepository;
+    private final TaskStatusHistoryService taskStatusHistoryService;
 
     private User getCurrentUser(){
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -103,6 +104,7 @@ public class TaskService {
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task not found with id : "+id));
     }
 
+    @Transactional
     public Task updateTaskById(Long id, Task task){
 
         Task existingTask = getTaskById(id);
@@ -130,8 +132,11 @@ public class TaskService {
             existingTask.setPriority(task.getPriority());
         }
 
-        if (task.getStatus() != null && !task.getStatus().isBlank()) {
+        String oldStatus =existingTask.getStatus();
+        boolean statusChanged = false;
+        if (task.getStatus() != null && !task.getStatus().isBlank() && !task.getStatus().equals(existingTask.getStatus())) {
             existingTask.setStatus(task.getStatus());
+            statusChanged=true;
         }
 
         if (task.getEtaHours() != null) {
@@ -221,7 +226,19 @@ public class TaskService {
             existingTask.setBugNumber(null);
         }
 
-        return taskRepository.save(existingTask);
+        Task savedTask = taskRepository.save(existingTask);
+
+        if (statusChanged) {
+            taskStatusHistoryService.createTaskStatusHistory(
+                    savedTask,
+                    oldStatus,
+                    savedTask.getStatus(),
+                    getCurrentUser(),
+                    null
+            );
+        }
+
+        return savedTask;
     }
 
     public void unassignTaskById(Long id){
