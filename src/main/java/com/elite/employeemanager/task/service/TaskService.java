@@ -7,6 +7,7 @@ import com.elite.employeemanager.project.entity.Project;
 import com.elite.employeemanager.project.repository.ProjectEmployeeRepository;
 import com.elite.employeemanager.project.repository.ProjectRepository;
 import com.elite.employeemanager.task.entity.Task;
+import com.elite.employeemanager.task.repository.TaskCommentRepository;
 import com.elite.employeemanager.task.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -25,6 +26,7 @@ public class TaskService {
     private final ProjectRepository projectRepository;
     private final EmployeeRepository employeeRepository;
     private final ProjectEmployeeRepository projectEmployeeRepository;
+    private final TaskCommentRepository taskCommentRepository;
 
     private User getCurrentUser(){
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -226,6 +228,9 @@ public class TaskService {
 
     public void deleteTaskById(Long id, String reason){
         Task task = getTaskById(id);
+
+        taskCommentRepository.deleteByTask(task);
+
         task.setIsDeleted(true);
         task.setDeletedAt(LocalDateTime.now());
         task.setDeleteReason(reason);
