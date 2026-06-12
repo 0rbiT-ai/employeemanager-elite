@@ -23,7 +23,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -77,7 +79,14 @@ public class AuthenticationService {
     }
 
     public LoginResponse login(LoginRequest request){
-        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(),request.getPassword()));
+        try{
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(),request.getPassword()));
+        }catch (BadCredentialsException e){
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"Wrong Email or Password");
+        }
+        catch (AuthenticationException e){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Account Disabled");
+        }
         User user = (User) customUserDetailsService.loadUserByUsername(request.getEmail());
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
