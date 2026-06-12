@@ -2,6 +2,8 @@ package com.elite.employeemanager.project.controller;
 
 import com.elite.employeemanager.project.entity.Project;
 import com.elite.employeemanager.project.service.ProjectService;
+import com.elite.employeemanager.task.entity.Task;
+import com.elite.employeemanager.task.service.TaskService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +19,7 @@ import java.util.List;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final TaskService taskService;
 
     @PostMapping
     public ResponseEntity<Project> addProject(@RequestBody Project project){
@@ -42,5 +45,10 @@ public class ProjectController {
     public ResponseEntity<String> deleteProjectById(@PathVariable Long id, @RequestBody String reason){
         projectService.deleteProjectById(id,reason);
         return new ResponseEntity<>("Project Deleted", HttpStatus.OK);
+    }
+
+    @GetMapping("/{id}/tasks")
+    private ResponseEntity<List<Task>> getTasksByProjectId(@PathVariable Long id){
+        return new ResponseEntity<>(taskService.getTasksByProjectId(id),HttpStatus.OK);
     }
 }
