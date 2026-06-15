@@ -69,7 +69,7 @@ public class TaskProgressService {
     }
 
     public void deleteTaskProgressById(Long id){
-        getTaskProgressById(id);
-        taskProgressRepository.deleteById(id);
+        TaskProgress taskProgress = getTaskProgressById(id);
+        taskProgressRepository.delete(taskProgress);
     }
 }

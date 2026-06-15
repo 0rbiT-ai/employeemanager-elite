@@ -1,13 +1,7 @@
 package com.elite.employeemanager.task.controller;
 
-import com.elite.employeemanager.task.entity.Task;
-import com.elite.employeemanager.task.entity.TaskComment;
-import com.elite.employeemanager.task.entity.TaskProgress;
-import com.elite.employeemanager.task.entity.TaskStatusHistory;
-import com.elite.employeemanager.task.service.TaskCommentService;
-import com.elite.employeemanager.task.service.TaskProgressService;
-import com.elite.employeemanager.task.service.TaskService;
-import com.elite.employeemanager.task.service.TaskStatusHistoryService;
+import com.elite.employeemanager.task.entity.*;
+import com.elite.employeemanager.task.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +19,7 @@ public class TaskController {
     private final TaskCommentService taskCommentService;
     private final TaskStatusHistoryService taskStatusHistoryService;
     private final TaskProgressService taskProgressService;
+    private final TaskTagMappingService taskTagMappingService;
 
     @PostMapping
     public ResponseEntity<Task> addTask(@RequestBody Task task){
@@ -71,6 +66,11 @@ public class TaskController {
     @GetMapping("/{id}/progress")
     public ResponseEntity<List<TaskProgress>> getTaskProgressByTaskId(@PathVariable Long id) {
         return new ResponseEntity<>(taskProgressService.getTaskProgressByTaskId(id), HttpStatus.OK);
+    }
+
+    @GetMapping("/{id}/tags")
+    public ResponseEntity<List<TaskTag>> getTagsByTaskId(@PathVariable Long id){
+        return new ResponseEntity<>(taskTagMappingService.getTagsByTaskId(id),HttpStatus.OK);
     }
 
 }
