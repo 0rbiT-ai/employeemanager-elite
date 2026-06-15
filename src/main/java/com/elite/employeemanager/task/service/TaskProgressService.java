@@ -47,7 +47,7 @@ public class TaskProgressService {
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
         projectEmployeeRepository.findByProjectAndEmployee(task.getProject(), employee)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.BAD_REQUEST,"Employee does not belong to the Project of this Task"));
-        if (!employee.equals(task.getAssignedTo())) {
+        if (task.getAssignedTo()==null||!employee.getId().equals(task.getAssignedTo().getId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Task not assigned to current employee");
         }
 

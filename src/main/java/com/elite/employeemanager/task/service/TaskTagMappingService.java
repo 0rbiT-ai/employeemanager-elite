@@ -9,6 +9,7 @@ import com.elite.employeemanager.task.repository.TaskTagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -21,6 +22,7 @@ public class TaskTagMappingService {
     private final TaskTagMappingRepository taskTagMappingRepository;
     private final TaskRepository taskRepository;
 
+    @Transactional
     public TaskTagMapping addTagToTask(Long taskId, Long tagId){
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task Not Found"));
@@ -48,6 +50,7 @@ public class TaskTagMappingService {
         return mapping.stream().map(TaskTagMapping::getTag).toList();
     }
 
+    @Transactional
     public void removeTagFromTask(Long taskId,Long tagId){
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task Not Found"));

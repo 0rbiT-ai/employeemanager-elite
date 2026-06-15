@@ -17,11 +17,12 @@ public class S3Service {
     private final S3Client s3Client;
     private final S3Properties s3Properties;
 
-    public void uploadFile(MultipartFile file) throws IOException {
+    public String uploadFile(MultipartFile file, String key) throws IOException {
         PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(s3Properties.getBucketName())
-                .key(file.getOriginalFilename())
+                .key(key)
                 .build();
         s3Client.putObject(request, RequestBody.fromBytes(file.getBytes()));
+        return key;
     }
 }
