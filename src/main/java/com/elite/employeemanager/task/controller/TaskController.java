@@ -2,8 +2,10 @@ package com.elite.employeemanager.task.controller;
 
 import com.elite.employeemanager.task.entity.Task;
 import com.elite.employeemanager.task.entity.TaskComment;
+import com.elite.employeemanager.task.entity.TaskProgress;
 import com.elite.employeemanager.task.entity.TaskStatusHistory;
 import com.elite.employeemanager.task.service.TaskCommentService;
+import com.elite.employeemanager.task.service.TaskProgressService;
 import com.elite.employeemanager.task.service.TaskService;
 import com.elite.employeemanager.task.service.TaskStatusHistoryService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ public class TaskController {
     private final TaskService taskService;
     private final TaskCommentService taskCommentService;
     private final TaskStatusHistoryService taskStatusHistoryService;
+    private final TaskProgressService taskProgressService;
 
     @PostMapping
     public ResponseEntity<Task> addTask(@RequestBody Task task){
@@ -63,6 +66,11 @@ public class TaskController {
     @GetMapping("/{id}/history")
     public ResponseEntity<List<TaskStatusHistory>> getTaskStatusHistoryByTaskId(@PathVariable Long id) {
         return new ResponseEntity<>(taskStatusHistoryService.getTaskStatusHistoryByTaskId(id), HttpStatus.OK);
+    }
+
+    @GetMapping("/{id}/progress")
+    public ResponseEntity<List<TaskProgress>> getTaskProgressByTaskId(@PathVariable Long id) {
+        return new ResponseEntity<>(taskProgressService.getTaskProgressByTaskId(id), HttpStatus.OK);
     }
 
 }
