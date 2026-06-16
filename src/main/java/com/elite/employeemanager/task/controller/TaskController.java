@@ -21,6 +21,7 @@ public class TaskController {
     private final TaskProgressService taskProgressService;
     private final TaskTagMappingService taskTagMappingService;
     private final TaskAttachmentService taskAttachmentService;
+    private final EtaExtensionService etaExtensionService;
 
     @PostMapping
     public ResponseEntity<Task> addTask(@RequestBody Task task){
@@ -77,6 +78,11 @@ public class TaskController {
     @GetMapping("/{id}/attachments")
     public ResponseEntity<List<TaskAttachment>> getAttachmentsByTaskId(@PathVariable Long id){
         return new ResponseEntity<>(taskAttachmentService.getAttachmentsByTaskId(id),HttpStatus.OK);
+    }
+
+    @GetMapping("/{id}/eta-extensions")
+    public ResponseEntity<List<EtaExtension>> getEtaExtensionRequestsByTaskId(@PathVariable Long id){
+        return new ResponseEntity<>(etaExtensionService.getEtaExtensionRequestsByTaskId(id),HttpStatus.OK);
     }
 
 }
