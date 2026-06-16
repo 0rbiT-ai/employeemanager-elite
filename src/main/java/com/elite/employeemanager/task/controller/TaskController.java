@@ -20,6 +20,7 @@ public class TaskController {
     private final TaskStatusHistoryService taskStatusHistoryService;
     private final TaskProgressService taskProgressService;
     private final TaskTagMappingService taskTagMappingService;
+    private final TaskAttachmentService taskAttachmentService;
 
     @PostMapping
     public ResponseEntity<Task> addTask(@RequestBody Task task){
@@ -71,6 +72,11 @@ public class TaskController {
     @GetMapping("/{id}/tags")
     public ResponseEntity<List<TaskTag>> getTagsByTaskId(@PathVariable Long id){
         return new ResponseEntity<>(taskTagMappingService.getTagsByTaskId(id),HttpStatus.OK);
+    }
+
+    @GetMapping("/{id}/attachments")
+    public ResponseEntity<List<TaskAttachment>> getAttachmentsByTaskId(@PathVariable Long id){
+        return new ResponseEntity<>(taskAttachmentService.getAttachmentsByTaskId(id),HttpStatus.OK);
     }
 
 }
