@@ -8,10 +8,13 @@ import com.elite.employeemanager.auth.user.entity.User;
 import com.elite.employeemanager.auth.user.repository.UserRepository;
 import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.employee.repository.EmployeeRepository;
+import com.elite.employeemanager.project.entity.Project;
 import com.elite.employeemanager.project.repository.ProjectEmployeeRepository;
 import com.elite.employeemanager.project.service.ProjectEmployeeService;
 import com.elite.employeemanager.task.entity.Task;
+import com.elite.employeemanager.task.repository.EtaExtensionRepository;
 import com.elite.employeemanager.task.repository.TaskRepository;
+import com.elite.employeemanager.task.repository.TaskTransferRepository;
 import com.elite.employeemanager.task.service.TaskService;
 import com.elite.employeemanager.team.repository.TeamEmployeeRepository;
 import com.elite.employeemanager.team.repository.TeamRepository;
@@ -43,6 +46,8 @@ public class EmployeeService {
     private final TeamRepository teamRepository;
     private final TaskRepository taskRepository;
     private final TaskService taskService;
+    private final TaskTransferRepository taskTransferRepository;
+    private final EtaExtensionRepository etaExtensionRepository;
 
     private void populateRoles(Employee employee){
         if (employee==null||employee.getUser()==null) return;
@@ -288,7 +293,6 @@ public class EmployeeService {
     @Transactional
     public void deleteEmployeeById(Long id, String reason){
         Employee employee = getEmployeeById(id);
-
         boolean isLead = teamRepository.existsByLead(employee);
         boolean isSubLead = teamRepository.existsBySubLead(employee);
         if (isLead||isSubLead){
@@ -297,7 +301,9 @@ public class EmployeeService {
         }
         projectEmployeeRepository.deleteByEmployee(employee);
         teamEmployeeRepository.deleteByEmployee(employee);
-
+        taskTransferRepository.deleteByTargetEmployeeAndStatus(employee,"PENDING");
+        taskTransferRepository.deleteByRequestedByAndStatus(employee,"PENDING");
+        etaExtensionRepository.deleteByRequestedByAndStatus(employee,"PENDING");
         List<Task> tasks = taskRepository.findByAssignedTo(employee);
         tasks.forEach(task -> taskService.unassignTaskById(task.getId()));
 

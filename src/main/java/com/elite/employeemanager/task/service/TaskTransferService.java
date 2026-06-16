@@ -113,7 +113,9 @@ public class TaskTransferService {
                     HttpStatus.BAD_REQUEST,
                     "Task has been deleted");
         }
-
+        if ("COMPLETED".equalsIgnoreCase(task.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot approve transfer for a completed task");
+        }
         if (task.getAssignedTo() == null) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -128,6 +130,7 @@ public class TaskTransferService {
         if (!"PENDING".equals(request.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request already processed");
         }
+
         projectEmployeeRepository.findByProjectAndEmployee(task.getProject(), request.getTargetEmployee())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target employee does not belong to the project"));
 
@@ -168,6 +171,15 @@ public class TaskTransferService {
         request.setReviewedAt(LocalDateTime.now());
         request.setReviewedBy(getCurrentUser());
         request.setRejectionReason(reason);
+
+        taskStatusHistoryService.createTaskStatusHistory(
+                request.getTask(),
+                request.getTask().getStatus(),
+                request.getTask().getStatus(),
+                getCurrentUser(),
+                "Task transfer request to " + request.getTargetEmployee().getName() + " rejected: " + reason
+        );
+
         return taskTransferRepository.save(request);
     }
 
@@ -200,6 +212,25 @@ public class TaskTransferService {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Requested employee does not belong to the project"));
             task.setAssignedTo(request.getRequestedBy());
             taskRepository.save(task);
+
+            taskStatusHistoryService.createTaskStatusHistory(
+                    task,
+                    task.getStatus(),
+                    task.getStatus(),
+                    getCurrentUser(),
+                    "Undid task transfer. Reassigned task from "
+                            + request.getTargetEmployee().getName()
+                            + " back to "
+                            + request.getRequestedBy().getName()
+            );
+        } else if ("REJECTED".equals(request.getStatus())) {
+            taskStatusHistoryService.createTaskStatusHistory(
+                    task,
+                    task.getStatus(),
+                    task.getStatus(),
+                    getCurrentUser(),
+                    "Undid task transfer rejection (original rejection reason: " + request.getRejectionReason() + ")"
+            );
         }
 
         request.setStatus("PENDING");

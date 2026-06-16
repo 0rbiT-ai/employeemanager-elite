@@ -1,5 +1,6 @@
 package com.elite.employeemanager.task.repository;
 
+import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.task.entity.EtaExtension;
 import com.elite.employeemanager.task.entity.Task;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,4 +15,6 @@ public interface EtaExtensionRepository extends JpaRepository<EtaExtension, Long
     List<EtaExtension> findByTask(Task task);
 
     void deleteByTaskAndStatus(Task task, String status);
+
+    void deleteByRequestedByAndStatus(Employee requestedBy, String status);
 }

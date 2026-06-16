@@ -19,4 +19,8 @@ public interface TaskTransferRepository extends JpaRepository<TaskTransfer,Long>
     void deleteByTaskProjectAndTargetEmployeeAndStatus(Project project,Employee targetEmployee, String status);
 
     void deleteByTaskProjectAndRequestedByAndStatus(Project project, Employee employee, String pending);
+
+    void deleteByTargetEmployeeAndStatus(Employee employee, String pending);
+
+    void deleteByRequestedByAndStatus(Employee employee, String pending);
 }

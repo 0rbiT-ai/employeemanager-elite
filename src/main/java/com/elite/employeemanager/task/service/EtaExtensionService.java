@@ -148,6 +148,15 @@ public class EtaExtensionService {
         request.setReviewedAt(LocalDateTime.now());
         request.setReviewedBy(getCurrentUser());
         request.setRejectionReason(reason);
+
+        taskStatusHistoryService.createTaskStatusHistory(
+                request.getTask(),
+                request.getTask().getStatus(),
+                request.getTask().getStatus(),
+                getCurrentUser(),
+                "ETA extension request rejected: " + reason
+        );
+
         return etaExtensionRepository.save(request);
     }
 
@@ -172,8 +181,24 @@ public class EtaExtensionService {
                         "Task is no longer assigned to the requesting employee");
             }
             task.setEtaDate(request.getOldEtaDate());
-            task.setExtendedEtaDate(null);
+            task.setExtendedEtaDate(request.getOldEtaDate().equals(task.getOriginalEtaDate()) ? null : request.getOldEtaDate());
             taskRepository.save(task);
+
+            taskStatusHistoryService.createTaskStatusHistory(
+                    task,
+                    task.getStatus(),
+                    task.getStatus(),
+                    getCurrentUser(),
+                    "Undid ETA extension approval. Reverted ETA to " + request.getOldEtaDate()
+            );
+        } else if ("REJECTED".equals(request.getStatus())) {
+            taskStatusHistoryService.createTaskStatusHistory(
+                    task,
+                    task.getStatus(),
+                    task.getStatus(),
+                    getCurrentUser(),
+                    "Undid ETA extension rejection (original rejection reason: " + request.getRejectionReason() + ")"
+            );
         }
         request.setStatus("PENDING");
         request.setReviewedAt(null);
