@@ -1,5 +1,6 @@
 package com.elite.employeemanager.task.service;
 
+import com.elite.employeemanager.auth.user.entity.User;
 import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.employee.repository.EmployeeRepository;
 import com.elite.employeemanager.project.repository.ProjectEmployeeRepository;
@@ -9,12 +10,14 @@ import com.elite.employeemanager.task.repository.TaskProgressRepository;
 import com.elite.employeemanager.task.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +27,14 @@ public class TaskProgressService {
     private final EmployeeRepository employeeRepository;
     private final TaskRepository taskRepository;
     private final ProjectEmployeeRepository projectEmployeeRepository;
+
+    private User getCurrentUser(){
+        Object principal = Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        if(principal instanceof User user) {
+            return user;
+        }
+        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
+    }
 
     @Transactional
     public TaskProgress addTaskProgress(TaskProgress progress){
@@ -43,7 +54,8 @@ public class TaskProgressService {
         }
         Task task = taskRepository.findById(progress.getTask().getId())
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task Not Found"));
-        Employee employee = employeeRepository.findById(progress.getEmployee().getId())
+        User user = getCurrentUser();
+        Employee employee = employeeRepository.findByWorkEmail(user.getEmail())
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
         projectEmployeeRepository.findByProjectAndEmployee(task.getProject(), employee)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.BAD_REQUEST,"Employee does not belong to the Project of this Task"));

@@ -46,7 +46,7 @@ public class TaskAttachmentService {
     public TaskAttachment uploadAttachment(Long taskId, MultipartFile file){
 
         if (file.getSize() > MAX_FILE_SIZE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File size exceeds the maximum limit of 10MB");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File size exceeds the maximum limit of 50MB");
         }
 
         Task task = taskRepository.findById(taskId)

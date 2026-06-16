@@ -1,5 +1,6 @@
 package com.elite.employeemanager.task.service;
 
+import com.elite.employeemanager.auth.user.entity.User;
 import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.employee.repository.EmployeeRepository;
 import com.elite.employeemanager.task.entity.Task;
@@ -8,10 +9,12 @@ import com.elite.employeemanager.task.repository.TaskCommentRepository;
 import com.elite.employeemanager.task.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +23,14 @@ public class TaskCommentService {
     private final TaskCommentRepository taskCommentRepository;
     private final EmployeeRepository employeeRepository;
     private final TaskRepository taskRepository;
+
+    private User getCurrentUser(){
+        Object principal = Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        if(principal instanceof User user) {
+            return user;
+        }
+        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
+    }
 
     public TaskComment addTaskComment(TaskComment comment){
 
@@ -35,7 +46,8 @@ public class TaskCommentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Task Id is required");
         }
 
-        Employee author = employeeRepository.findById(comment.getAuthor().getId())
+        User user = getCurrentUser();
+        Employee author = employeeRepository.findByWorkEmail(user.getEmail())
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Author not found"));
 
         Task task = taskRepository.findById(comment.getTask().getId())
