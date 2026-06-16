@@ -4,12 +4,16 @@ import com.elite.employeemanager.task.entity.TaskAttachment;
 import com.elite.employeemanager.task.repository.TaskAttachmentRepository;
 import com.elite.employeemanager.task.service.TaskAttachmentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
 @RestController
 @RequestMapping("/api/v1/tasks")
@@ -26,14 +30,16 @@ public class TaskAttachmentController {
     }
 
     @GetMapping("/{taskId}/attachments/{attachmentId}")
-    public ResponseEntity<byte[]> downloadAttachment(@PathVariable Long taskId, @PathVariable Long attachmentId){
+    public ResponseEntity<InputStreamResource> downloadAttachment(@PathVariable Long taskId, @PathVariable Long attachmentId){
 
         TaskAttachment attachment = taskAttachmentService.getAttachment(attachmentId,taskId);
-        byte[] file = taskAttachmentService.downloadAttachment(attachmentId,taskId);
+        ResponseInputStream<GetObjectResponse> fileStream = taskAttachmentService.downloadAttachment(attachmentId,taskId);
 
         return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .header(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=\""+attachment.getFileName()+"\"")
-                .body(file);
+                .contentLength(attachment.getFileSizeBytes())
+                .body(new InputStreamResource(fileStream));
     }
 
     @DeleteMapping("/{taskId}/attachments/{attachmentId}")

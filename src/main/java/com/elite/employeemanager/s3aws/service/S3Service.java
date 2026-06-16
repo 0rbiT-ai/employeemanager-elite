@@ -6,10 +6,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
@@ -35,13 +37,13 @@ public class S3Service {
         return key;
     }
 
-    public byte[] downloadFile(String key){
+    public ResponseInputStream<GetObjectResponse> downloadFileStream(String key){
         GetObjectRequest request = GetObjectRequest.builder()
                 .bucket(s3Properties.getBucketName())
                 .key(key)
                 .build();
 
-        return s3Client.getObjectAsBytes(request).asByteArray();
+        return s3Client.getObject(request);
     }
 
     public void deleteFile(String key){

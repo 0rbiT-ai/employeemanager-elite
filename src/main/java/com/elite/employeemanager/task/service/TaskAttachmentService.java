@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -69,7 +71,7 @@ public class TaskAttachmentService {
                         .uploadedAt(LocalDateTime.now())
                         .build();
         try{
-            return taskAttachmentRepository.save(attachment);
+            return taskAttachmentRepository.saveAndFlush(attachment);
         }catch (Exception e){
             s3Service.deleteFile(key);
             throw e;
@@ -77,7 +79,7 @@ public class TaskAttachmentService {
     }
 
     @Transactional(readOnly = true)
-    public byte[] downloadAttachment(Long attachmentId, Long taskId){
+    public ResponseInputStream<GetObjectResponse> downloadAttachment(Long attachmentId, Long taskId){
 
         TaskAttachment attachment = taskAttachmentRepository.findByIdAndTaskId(attachmentId,taskId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Attachment Not Found"));
@@ -87,7 +89,7 @@ public class TaskAttachmentService {
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
         //maybe validate here if user can view task
 
-        return s3Service.downloadFile(attachment.getFilePath());
+        return s3Service.downloadFileStream(attachment.getFilePath());
     }
 
     @Transactional
