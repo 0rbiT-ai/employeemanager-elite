@@ -22,6 +22,7 @@ public class TaskController {
     private final TaskTagMappingService taskTagMappingService;
     private final TaskAttachmentService taskAttachmentService;
     private final EtaExtensionService etaExtensionService;
+    private final TaskTransferService taskTransferService;
 
     @PostMapping
     public ResponseEntity<Task> addTask(@RequestBody Task task){
@@ -85,4 +86,8 @@ public class TaskController {
         return new ResponseEntity<>(etaExtensionService.getEtaExtensionRequestsByTaskId(id),HttpStatus.OK);
     }
 
+    @GetMapping("/{id}/task-transfers")
+    public ResponseEntity<List<TaskTransfer>> getTaskTransferRequestsByTaskId(@PathVariable Long id){
+        return new ResponseEntity<>(taskTransferService.getTaskTransferByTaskId(id),HttpStatus.OK);
+    }
 }

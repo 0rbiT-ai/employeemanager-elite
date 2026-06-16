@@ -7,6 +7,7 @@ import com.elite.employeemanager.project.entity.Project;
 import com.elite.employeemanager.project.repository.ProjectEmployeeRepository;
 import com.elite.employeemanager.project.repository.ProjectRepository;
 import com.elite.employeemanager.task.entity.Task;
+import com.elite.employeemanager.task.repository.EtaExtensionRepository;
 import com.elite.employeemanager.task.repository.TaskCommentRepository;
 import com.elite.employeemanager.task.repository.TaskRepository;
 import com.elite.employeemanager.task.repository.TaskTagMappingRepository;
@@ -29,6 +30,7 @@ public class TaskService {
     private final EmployeeRepository employeeRepository;
     private final ProjectEmployeeRepository projectEmployeeRepository;
     private final TaskStatusHistoryService taskStatusHistoryService;
+    private final EtaExtensionRepository etaExtensionRepository;
 
     private User getCurrentUser(){
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -241,9 +243,11 @@ public class TaskService {
         return savedTask;
     }
 
+    @Transactional
     public void unassignTaskById(Long id){
         Task task = getTaskById(id);
         task.setAssignedTo(null);
+        etaExtensionRepository.deleteByTaskAndStatus(task,"PENDING");
         taskRepository.save(task);
     }
 

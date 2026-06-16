@@ -6,6 +6,10 @@ import com.elite.employeemanager.project.entity.Project;
 import com.elite.employeemanager.project.entity.ProjectEmployee;
 import com.elite.employeemanager.project.repository.ProjectEmployeeRepository;
 import com.elite.employeemanager.project.repository.ProjectRepository;
+import com.elite.employeemanager.task.entity.Task;
+import com.elite.employeemanager.task.repository.TaskRepository;
+import com.elite.employeemanager.task.repository.TaskTransferRepository;
+import com.elite.employeemanager.task.service.TaskService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -21,6 +25,9 @@ public class ProjectEmployeeService {
     private final ProjectEmployeeRepository projectEmployeeRepository;
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
+    private final TaskTransferRepository taskTransferRepository;
+    private final TaskRepository taskRepository;
+    private final TaskService taskService;
 
     @Transactional
     public ProjectEmployee addEmployeeToProject(Long projectId, Long employeeId){
@@ -42,12 +49,22 @@ public class ProjectEmployeeService {
 
     @Transactional
     public void removeEmployeeFromProject(Long projectId, Long employeeId){
+
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
+
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Project Not Found"));
+
         ProjectEmployee projectEmployee = projectEmployeeRepository.findByProjectAndEmployee(project,employee)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee does not belong to this project"));
+
+        taskTransferRepository.deleteByTaskProjectAndTargetEmployeeAndStatus(project,employee,"PENDING");
+        taskTransferRepository.deleteByTaskProjectAndRequestedByAndStatus(project,employee,"PENDING");
+
+        List<Task> tasks = taskRepository.findByProjectAndAssignedTo(project,employee);
+        tasks.forEach(task -> taskService.unassignTaskById(task.getId()));
+
         projectEmployeeRepository.delete(projectEmployee);
     }
 

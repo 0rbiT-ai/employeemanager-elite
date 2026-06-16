@@ -12,4 +12,6 @@ public interface EtaExtensionRepository extends JpaRepository<EtaExtension, Long
     boolean existsByTaskAndStatus(Task task, String status);
 
     List<EtaExtension> findByTask(Task task);
+
+    void deleteByTaskAndStatus(Task task, String status);
 }
