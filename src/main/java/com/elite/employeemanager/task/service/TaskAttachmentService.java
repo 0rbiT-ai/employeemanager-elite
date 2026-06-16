@@ -32,6 +32,8 @@ public class TaskAttachmentService {
     private final EmployeeRepository employeeRepository;
     private final S3Service s3Service;
 
+    private final long MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
     private User getCurrentUser(){
         Object principal = Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         if(principal instanceof User user) {
@@ -42,6 +44,10 @@ public class TaskAttachmentService {
 
     @Transactional
     public TaskAttachment uploadAttachment(Long taskId, MultipartFile file){
+
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File size exceeds the maximum limit of 10MB");
+        }
 
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task Not Found"));
@@ -58,7 +64,7 @@ public class TaskAttachmentService {
         try {
             s3Service.uploadFile(file,key);
         }catch (IOException e){
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,"Failed to Upload File");
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,"Failed to Upload File",e);
         }
 
         TaskAttachment attachment =
