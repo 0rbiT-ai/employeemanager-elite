@@ -9,4 +9,8 @@ import org.springframework.stereotype.Repository;
 public interface TeamRepository extends JpaRepository<Team,Long> {
     boolean existsByLead(Employee employee);
     boolean existsBySubLead(Employee employee);
+
+    boolean existsByLeadAndStatus(Employee employee, String status);
+
+    boolean existsBySubLeadAndStatus(Employee subLead, String status);
 }

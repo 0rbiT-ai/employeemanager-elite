@@ -1,5 +1,6 @@
 package com.elite.employeemanager.team.service;
 
+import com.elite.employeemanager.auth.mapping.service.UserRoleRecalculationService;
 import com.elite.employeemanager.auth.user.entity.User;
 import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.employee.repository.EmployeeRepository;
@@ -23,6 +24,7 @@ public class TeamService {
     private final TeamRepository teamRepository;
     private final EmployeeRepository employeeRepository;
     private final TeamEmployeeRepository teamEmployeeRepository;
+    private final UserRoleRecalculationService userRoleRecalculationService;
 
     private User getCurrentUser(){
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -44,8 +46,9 @@ public class TeamService {
                     "Team lead is required"
             );
         }
-        employeeRepository.findById(team.getLead().getId())
+        Employee lead = employeeRepository.findById(team.getLead().getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee Not Found"));
+        team.setLead(lead);
 
         if (team.getSubLead() == null) {
             throw new ResponseStatusException(
@@ -53,14 +56,16 @@ public class TeamService {
                     "Team sub-lead is required"
             );
         }
-        employeeRepository.findById(team.getSubLead().getId())
+        Employee subLead = employeeRepository.findById(team.getSubLead().getId())
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
-
+        team.setSubLead(subLead);
 
         if(team.getSubLead().getId().equals(team.getLead().getId())){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Team lead and Sub Lead cannot be the same");
         }
 
+        userRoleRecalculationService.recalculateUserRoles(lead);
+        userRoleRecalculationService.recalculateUserRoles(subLead);
         return teamRepository.save(team);
     }
 
@@ -77,6 +82,8 @@ public class TeamService {
     public Team updateTeamById(Long id, Team updatedTeam){
 
         Team existingTeam = getTeamById(id);
+        Employee oldLead = existingTeam.getLead();
+        Employee oldSubLead = existingTeam.getSubLead();
 
         if (updatedTeam.getTeamName()!=null){
             existingTeam.setTeamName(updatedTeam.getTeamName());
@@ -117,7 +124,17 @@ public class TeamService {
             existingTeam.setStatus(status);
         }
 
-        return teamRepository.save(existingTeam);
+        Team savedTeam = teamRepository.save(existingTeam);
+        userRoleRecalculationService.recalculateUserRoles(savedTeam.getLead());
+        userRoleRecalculationService.recalculateUserRoles(savedTeam.getSubLead());
+
+        if (oldLead != null && !oldLead.getId().equals(savedTeam.getLead().getId())) {
+            userRoleRecalculationService.recalculateUserRoles(oldLead);
+        }
+        if (oldSubLead != null && !oldSubLead.getId().equals(savedTeam.getSubLead().getId())) {
+            userRoleRecalculationService.recalculateUserRoles(oldSubLead);
+        }
+        return savedTeam;
     }
 
     @Transactional
@@ -134,7 +151,9 @@ public class TeamService {
         existingTeam.setDeleteReason(reason);
         existingTeam.setStatus("INACTIVE");
 
-        teamRepository.save(existingTeam);
+        Team savedTeam = teamRepository.save(existingTeam);
+        userRoleRecalculationService.recalculateUserRoles(savedTeam.getLead());
+        userRoleRecalculationService.recalculateUserRoles(savedTeam.getSubLead());
     }
 
 }
