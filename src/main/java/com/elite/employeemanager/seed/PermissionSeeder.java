@@ -88,11 +88,14 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(teamLead, employeeView);
 
         mapPermissionToRole(teamLead, teamView);
+        mapPermissionToRole(teamLead, teamCreate);
         mapPermissionToRole(teamLead, teamUpdate);
+        mapPermissionToRole(teamLead, teamDelete);
 
         mapPermissionToRole(teamLead, projectView);
         mapPermissionToRole(teamLead, projectCreate);
         mapPermissionToRole(teamLead, projectUpdate);
+        mapPermissionToRole(teamLead, projectDelete);
 
         mapPermissionToRole(teamLead, taskView);
         mapPermissionToRole(teamLead, taskCreate);
@@ -105,11 +108,14 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(subLead, employeeView);
 
         mapPermissionToRole(subLead, teamView);
+        mapPermissionToRole(subLead, teamCreate);
         mapPermissionToRole(subLead, teamUpdate);
+        mapPermissionToRole(subLead, teamDelete);
 
         mapPermissionToRole(subLead, projectView);
         mapPermissionToRole(subLead, projectCreate);
         mapPermissionToRole(subLead, projectUpdate);
+        mapPermissionToRole(subLead, projectDelete);
 
         mapPermissionToRole(subLead, taskView);
         mapPermissionToRole(subLead, taskCreate);

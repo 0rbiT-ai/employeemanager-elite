@@ -1,12 +1,12 @@
 package com.elite.employeemanager.project.service;
 
-import com.elite.employeemanager.auth.user.entity.User;
+import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.project.entity.Project;
+import com.elite.employeemanager.project.entity.ProjectEmployee;
 import com.elite.employeemanager.project.repository.ProjectEmployeeRepository;
 import com.elite.employeemanager.project.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -26,6 +26,12 @@ public class ProjectService {
 
     @Transactional
     public Project addProject(Project project){
+
+        Employee employee = securityUtils.getCurrentEmployee();
+        if (!employee.getRoles().contains("ADMIN") && !employee.getRoles().contains("TEAM_LEAD") && !employee.getRoles().contains("SUB_LEAD")){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Current User is not allowed to create projects");
+        }
+
         if (project.getColorHex() == null) {
             project.setColorHex("#8ECAE6");
         }
@@ -51,21 +57,53 @@ public class ProjectService {
         if (project.getEndDate()!=null && project.getEndDate().isBefore(project.getStartDate())){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "End date cannot be before start date");
         }
-        return projectRepository.save(project);
+        
+        Project savedProject = projectRepository.save(project);
+
+        if (employee.getRoles().contains("TEAM_LEAD") || employee.getRoles().contains("SUB_LEAD")) {
+            ProjectEmployee projectEmployee = ProjectEmployee.builder()
+                    .project(savedProject)
+                    .employee(employee)
+                    .build();
+            projectEmployeeRepository.save(projectEmployee);
+        }
+
+        return savedProject;
     }
 
     public List<Project> getAllProjects(){
+        Employee employee = securityUtils.getCurrentEmployee();
+        if (!employee.getRoles().contains("ADMIN")){
+            List<ProjectEmployee> memberships = projectEmployeeRepository.findByEmployee(employee);
+            return memberships.stream().map(ProjectEmployee::getProject).toList();
+        }
+
         return projectRepository.findAll();
     }
 
     public Project getProjectById(Long id){
-        return projectRepository.findById(id)
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Project Not Found with Id : "+id));
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project Not Found with Id : " + id));
+
+        Employee employee = securityUtils.getCurrentEmployee();
+
+        if (!employee.getRoles().contains("ADMIN")){
+            boolean isMember = projectEmployeeRepository.findByProjectAndEmployee(project, employee).isPresent();
+            if (!isMember){
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Current User Not Member of Project");
+            }
+        }
+        return project;
     }
 
     @Transactional
     public Project updateProjectById(Long id, Project updatedProject){
         Project existingProject = getProjectById(id);
+
+        Employee employee = securityUtils.getCurrentEmployee();
+        if (!employee.getRoles().contains("ADMIN") && !employee.getRoles().contains("TEAM_LEAD") && !employee.getRoles().contains("SUB_LEAD")){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Current User is not allowed to update project");
+        }
 
         if (updatedProject.getProjectName()!=null){
             if (updatedProject.getProjectName().isBlank()) {
@@ -111,6 +149,11 @@ public class ProjectService {
     @Transactional
     public void deleteProjectById(Long id, String reason){
         Project existingProject = getProjectById(id);
+
+        Employee employee = securityUtils.getCurrentEmployee();
+        if (!employee.getRoles().contains("ADMIN") && !employee.getRoles().contains("TEAM_LEAD") && !employee.getRoles().contains("SUB_LEAD")){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Current User is not allowed to delete project");
+        }
 
         projectEmployeeRepository.deleteByProject(existingProject);
 

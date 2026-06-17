@@ -1,5 +1,6 @@
 package com.elite.employeemanager.project.service;
 
+import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.employee.repository.EmployeeRepository;
 import com.elite.employeemanager.project.entity.Project;
@@ -28,6 +29,34 @@ public class ProjectEmployeeService {
     private final TaskTransferRepository taskTransferRepository;
     private final TaskRepository taskRepository;
     private final TaskService taskService;
+    private final SecurityUtils securityUtils;
+
+    private void validateProjectManagementAccess(Project project) {
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+
+        if (currentEmployee.getRoles().contains("ADMIN")) {
+            return;
+        }
+
+        if (!currentEmployee.getRoles().contains("TEAM_LEAD")
+                && !currentEmployee.getRoles().contains("SUB_LEAD")) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Current User is not allowed to manage project members"
+            );
+        }
+
+        boolean isMember = projectEmployeeRepository
+                .findByProjectAndEmployee(project, currentEmployee)
+                .isPresent();
+
+        if (!isMember) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Current User is not member of this project"
+            );
+        }
+    }
 
     @Transactional
     public ProjectEmployee addEmployeeToProject(Long projectId, Long employeeId){
@@ -35,6 +64,8 @@ public class ProjectEmployeeService {
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Project Not Found"));
+
+        validateProjectManagementAccess(project);
 
         if (projectEmployeeRepository.findByProjectAndEmployee(project,employee).isPresent()){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Employee is already member of this project");
@@ -56,6 +87,8 @@ public class ProjectEmployeeService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Project Not Found"));
 
+        validateProjectManagementAccess(project);
+
         ProjectEmployee projectEmployee = projectEmployeeRepository.findByProjectAndEmployee(project,employee)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee does not belong to this project"));
 
@@ -71,6 +104,15 @@ public class ProjectEmployeeService {
     public List<Employee> getMembersByProjectId(Long projectId){
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Project Not Found"));
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN")) {
+            boolean isMember = projectEmployeeRepository.findByProjectAndEmployee(project, currentEmployee).isPresent();
+            if (!isMember) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User Not Member of Project");
+            }
+        }
+
         List<ProjectEmployee> projectEmployees = projectEmployeeRepository.findByProject(project);
         return projectEmployees.stream().map(ProjectEmployee::getEmployee).toList();
     }
@@ -78,6 +120,16 @@ public class ProjectEmployeeService {
     public List<Project> getProjectsByEmployeeId(Long employeeId){
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN")
+                && !currentEmployee.getId().equals(employeeId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Current User is not allowed to view another employee's projects"
+            );
+        }
+
         List<ProjectEmployee> projectEmployees = projectEmployeeRepository.findByEmployee(employee);
         return projectEmployees.stream().map(ProjectEmployee::getProject).toList();
     }
