@@ -46,4 +46,11 @@ public class TeamController {
         teamService.deleteTeamById(id, reason);
         return ResponseEntity.ok("Team Deleted");
     }
+
+    @PatchMapping("/{id}/unassign-sublead")
+    @PreAuthorize("hasAuthority('TEAM_UPDATE')")
+    public ResponseEntity<String> unassignSubLead(@PathVariable Long id) {
+        teamService.unassignSubLead(id);
+        return ResponseEntity.ok("Sub-lead unassigned successfully");
+    }
 }

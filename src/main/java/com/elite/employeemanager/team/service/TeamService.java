@@ -44,22 +44,21 @@ public class TeamService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee Not Found"));
         team.setLead(lead);
 
-        if (team.getSubLead() == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Team sub-lead is required"
-            );
+        Employee subLead = null;
+        if (team.getSubLead() != null && team.getSubLead().getId() != null) {
+            subLead = employeeRepository.findById(team.getSubLead().getId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sub-Lead Employee Not Found"));
         }
-        Employee subLead = employeeRepository.findById(team.getSubLead().getId())
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
         team.setSubLead(subLead);
 
-        if(team.getSubLead().getId().equals(team.getLead().getId())){
+        if(subLead!=null && team.getSubLead().getId().equals(team.getLead().getId())){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Team lead and Sub Lead cannot be the same");
         }
 
         userRoleRecalculationService.recalculateUserRoles(lead);
-        userRoleRecalculationService.recalculateUserRoles(subLead);
+        if (subLead!=null){
+            userRoleRecalculationService.recalculateUserRoles(subLead);
+        }
         return teamRepository.save(team);
     }
 
@@ -148,4 +147,15 @@ public class TeamService {
         userRoleRecalculationService.recalculateUserRoles(savedTeam.getSubLead());
     }
 
+    @Transactional
+    public void unassignSubLead(Long id) {
+        Team team = getTeamById(id);
+        Employee oldSubLead = team.getSubLead();
+
+        if (oldSubLead != null) {
+            team.setSubLead(null);
+            teamRepository.save(team);
+            userRoleRecalculationService.recalculateUserRoles(oldSubLead);
+        }
+    }
 }
