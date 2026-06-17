@@ -13,6 +13,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,14 +27,7 @@ public class EtaExtensionService {
     private final TaskRepository taskRepository;
     private final EmployeeRepository employeeRepository;
     private final TaskStatusHistoryService taskStatusHistoryService;
-
-    private User getCurrentUser(){
-        Object principal = Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
-        if(principal instanceof User user) {
-            return user;
-        }
-        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
-    }
+    private final SecurityUtils securityUtils;
 
     public EtaExtension getEtaExtensionById(Long id){
         return etaExtensionRepository.findById(id)
@@ -50,9 +44,7 @@ public class EtaExtensionService {
         Task task = taskRepository.findById(etaExtension.getTask().getId())
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task Not Found"));
 
-        User user = getCurrentUser();
-        Employee employee = employeeRepository.findByWorkEmail(user.getEmail())
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
+        Employee employee = securityUtils.getCurrentEmployee();
 
         if (etaExtensionRepository.existsByTaskAndStatus(task,"PENDING")){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Task already has pending ETA Request");
@@ -113,7 +105,7 @@ public class EtaExtensionService {
 
         request.setStatus("APPROVED");
         request.setReviewedAt(LocalDateTime.now());
-        request.setReviewedBy(getCurrentUser());
+        request.setReviewedBy(securityUtils.getCurrentUser());
 
         task.setEtaDate(request.getNewEtaDate());
         task.setExtendedEtaDate(request.getNewEtaDate());
@@ -123,7 +115,7 @@ public class EtaExtensionService {
                 task,
                 task.getStatus(),
                 task.getStatus(),
-                getCurrentUser(),
+                securityUtils.getCurrentUser(),
                 "ETA extended from "
                         + request.getOldEtaDate()
                         + " to "
@@ -146,14 +138,14 @@ public class EtaExtensionService {
 
         request.setStatus("REJECTED");
         request.setReviewedAt(LocalDateTime.now());
-        request.setReviewedBy(getCurrentUser());
+        request.setReviewedBy(securityUtils.getCurrentUser());
         request.setRejectionReason(reason);
 
         taskStatusHistoryService.createTaskStatusHistory(
                 request.getTask(),
                 request.getTask().getStatus(),
                 request.getTask().getStatus(),
-                getCurrentUser(),
+                securityUtils.getCurrentUser(),
                 "ETA extension request rejected: " + reason
         );
 
@@ -188,7 +180,7 @@ public class EtaExtensionService {
                     task,
                     task.getStatus(),
                     task.getStatus(),
-                    getCurrentUser(),
+                    securityUtils.getCurrentUser(),
                     "Undid ETA extension approval. Reverted ETA to " + request.getOldEtaDate()
             );
         } else if ("REJECTED".equals(request.getStatus())) {
@@ -196,7 +188,7 @@ public class EtaExtensionService {
                     task,
                     task.getStatus(),
                     task.getStatus(),
-                    getCurrentUser(),
+                    securityUtils.getCurrentUser(),
                     "Undid ETA extension rejection (original rejection reason: " + request.getRejectionReason() + ")"
             );
         }

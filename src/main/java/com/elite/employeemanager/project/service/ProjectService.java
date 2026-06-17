@@ -10,6 +10,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,14 +22,7 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final ProjectEmployeeRepository projectEmployeeRepository;
-
-    private User getCurrentUser(){
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if(principal instanceof User) {
-            return  ((User) principal);
-        }
-        return null;
-    }
+    private final SecurityUtils securityUtils;
 
     @Transactional
     public Project addProject(Project project){
@@ -122,9 +116,7 @@ public class ProjectService {
 
         existingProject.setIsDeleted(true);
         existingProject.setDeletedAt(LocalDateTime.now());
-        if (getCurrentUser()!=null){
-            existingProject.setDeletedBy(getCurrentUser().getId());
-        }
+        existingProject.setDeletedBy(securityUtils.getCurrentUser().getId());
         existingProject.setDeleteReason(reason);
         if (!"COMPLETED".equalsIgnoreCase(existingProject.getStatus())){
             existingProject.setStatus("CANCELLED");

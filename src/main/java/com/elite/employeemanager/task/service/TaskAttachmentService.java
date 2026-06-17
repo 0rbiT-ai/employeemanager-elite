@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
@@ -31,16 +32,9 @@ public class TaskAttachmentService {
     private final TaskRepository taskRepository;
     private final EmployeeRepository employeeRepository;
     private final S3Service s3Service;
+    private final SecurityUtils securityUtils;
 
     private final long MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-
-    private User getCurrentUser(){
-        Object principal = Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
-        if(principal instanceof User user) {
-            return  user;
-        }
-        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
-    }
 
     @Transactional
     public TaskAttachment uploadAttachment(Long taskId, MultipartFile file){
@@ -52,9 +46,7 @@ public class TaskAttachmentService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task Not Found"));
 
-        User user = getCurrentUser();
-        Employee employee = employeeRepository.findByWorkEmail(user.getEmail())
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
+        Employee employee = securityUtils.getCurrentEmployee();
 
         // here maybe validate if user can upload file
 
@@ -90,9 +82,7 @@ public class TaskAttachmentService {
         TaskAttachment attachment = taskAttachmentRepository.findByIdAndTaskId(attachmentId,taskId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Attachment Not Found"));
 
-        User user = getCurrentUser();
-        Employee employee = employeeRepository.findByWorkEmail(user.getEmail())
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
+        Employee employee = securityUtils.getCurrentEmployee();
         //maybe validate here if user can view task
 
         return s3Service.downloadFileStream(attachment.getFilePath());
@@ -104,9 +94,7 @@ public class TaskAttachmentService {
         TaskAttachment attachment = taskAttachmentRepository.findByIdAndTaskId(attachmentId,taskId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Attachment Not Found"));
 
-        User user = getCurrentUser();
-        Employee employee = employeeRepository.findByWorkEmail(user.getEmail())
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
+        Employee employee = securityUtils.getCurrentEmployee();
         //maybe validate here if user can view task
 
         s3Service.deleteFile(attachment.getFilePath());

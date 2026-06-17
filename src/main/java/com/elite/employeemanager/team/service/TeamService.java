@@ -13,6 +13,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,14 +26,7 @@ public class TeamService {
     private final EmployeeRepository employeeRepository;
     private final TeamEmployeeRepository teamEmployeeRepository;
     private final UserRoleRecalculationService userRoleRecalculationService;
-
-    private User getCurrentUser(){
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if(principal instanceof User) {
-            return  ((User) principal);
-        }
-        return null;
-    }
+    private final SecurityUtils securityUtils;
 
     @Transactional
     public Team addTeam(Team team){
@@ -145,9 +139,7 @@ public class TeamService {
 
         existingTeam.setIsDeleted(true);
         existingTeam.setDeletedAt(LocalDateTime.now());
-        if (getCurrentUser()!=null){
-            existingTeam.setDeletedBy(getCurrentUser().getId());
-        }
+        existingTeam.setDeletedBy(securityUtils.getCurrentUser().getId());
         existingTeam.setDeleteReason(reason);
         existingTeam.setStatus("INACTIVE");
 

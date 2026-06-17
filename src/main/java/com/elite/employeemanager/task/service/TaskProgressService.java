@@ -14,6 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,14 +28,7 @@ public class TaskProgressService {
     private final EmployeeRepository employeeRepository;
     private final TaskRepository taskRepository;
     private final ProjectEmployeeRepository projectEmployeeRepository;
-
-    private User getCurrentUser(){
-        Object principal = Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
-        if(principal instanceof User user) {
-            return user;
-        }
-        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
-    }
+    private final SecurityUtils securityUtils;
 
     @Transactional
     public TaskProgress addTaskProgress(TaskProgress progress){
@@ -54,9 +48,7 @@ public class TaskProgressService {
         }
         Task task = taskRepository.findById(progress.getTask().getId())
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task Not Found"));
-        User user = getCurrentUser();
-        Employee employee = employeeRepository.findByWorkEmail(user.getEmail())
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
+        Employee employee = securityUtils.getCurrentEmployee();
         projectEmployeeRepository.findByProjectAndEmployee(task.getProject(), employee)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.BAD_REQUEST,"Employee does not belong to the Project of this Task"));
         if (task.getAssignedTo()==null||!employee.getId().equals(task.getAssignedTo().getId())) {

@@ -26,6 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -48,6 +49,7 @@ public class EmployeeService {
     private final TaskService taskService;
     private final TaskTransferRepository taskTransferRepository;
     private final EtaExtensionRepository etaExtensionRepository;
+    private final SecurityUtils securityUtils;
 
     private void populateRoles(Employee employee){
         if (employee==null||employee.getUser()==null) return;
@@ -56,14 +58,6 @@ public class EmployeeService {
         List<String> roles = userRoles.stream().map(ur->ur.getRole().getRoleCode()).toList();
 
         employee.setRoles(roles);
-    }
-
-    private User getCurrentUser(){
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if(principal instanceof User) {
-            return  ((User) principal);
-        }
-        return null;
     }
 
     @Transactional
@@ -130,7 +124,7 @@ public class EmployeeService {
                                 .user(user)
                                 .role(role)
                                 .assignedAt(LocalDateTime.now())
-                                .assignedBy(getCurrentUser())
+                                .assignedBy(securityUtils.getCurrentUser())
                                 .build();
                         userRoleRepository.save(userRoleMapping);
                     }
@@ -178,7 +172,7 @@ public class EmployeeService {
                     .user(savedUser)
                     .role(role)
                     .assignedAt(LocalDateTime.now())
-                    .assignedBy(getCurrentUser())
+                    .assignedBy(securityUtils.getCurrentUser())
                     .build();
             userRoleRepository.save(userRoleMapping);
         }
@@ -279,7 +273,7 @@ public class EmployeeService {
                             .user(existingUserPayload)
                             .role(role)
                             .assignedAt(LocalDateTime.now())
-                            .assignedBy(getCurrentUser())
+                            .assignedBy(securityUtils.getCurrentUser())
                             .build();
                     userRoleRepository.save(userRoleMapping);
                 }
@@ -309,9 +303,7 @@ public class EmployeeService {
 
         employee.setIsDeleted(true);
         employee.setDeletedAt(LocalDateTime.now());
-        if (getCurrentUser()!=null){
-            employee.setDeletedBy(getCurrentUser().getId());
-        }
+        employee.setDeletedBy(securityUtils.getCurrentUser().getId());
         employee.setDeleteReason(reason);
         employee.setStatus("INACTIVE");
 

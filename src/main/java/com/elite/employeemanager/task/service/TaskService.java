@@ -17,6 +17,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,14 +32,7 @@ public class TaskService {
     private final ProjectEmployeeRepository projectEmployeeRepository;
     private final TaskStatusHistoryService taskStatusHistoryService;
     private final EtaExtensionRepository etaExtensionRepository;
-
-    private User getCurrentUser(){
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if(principal instanceof User) {
-            return  ((User) principal);
-        }
-        return null;
-    }
+    private final SecurityUtils securityUtils;
 
     public Task createTask(Task task){
         if (task.getEtaHours() == null) {
@@ -235,7 +229,7 @@ public class TaskService {
                     savedTask,
                     oldStatus,
                     savedTask.getStatus(),
-                    getCurrentUser(),
+                    securityUtils.getCurrentUser(),
                     null
             );
         }
@@ -258,9 +252,7 @@ public class TaskService {
         task.setIsDeleted(true);
         task.setDeletedAt(LocalDateTime.now());
         task.setDeleteReason(reason);
-        if(getCurrentUser()!=null){
-            task.setDeletedBy(getCurrentUser().getId());
-        }
+        task.setDeletedBy(securityUtils.getCurrentUser().getId());
         taskRepository.save(task);
     }
 

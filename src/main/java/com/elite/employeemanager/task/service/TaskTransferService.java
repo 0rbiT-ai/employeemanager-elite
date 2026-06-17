@@ -15,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,14 +31,7 @@ public class TaskTransferService {
     private final TaskStatusHistoryService taskStatusHistoryService;
     private final ProjectEmployeeRepository projectEmployeeRepository;
     private final EtaExtensionRepository etaExtensionRepository;
-
-    private User getCurrentUser(){
-        Object principal = Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
-        if(principal instanceof User user) {
-            return user;
-        }
-        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
-    }
+    private final SecurityUtils securityUtils;
 
     public TaskTransfer getTaskTransferById(Long id){
         return taskTransferRepository.findById(id)
@@ -54,9 +48,7 @@ public class TaskTransferService {
         Task task = taskRepository.findById(taskTransfer.getTask().getId())
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task Not Found"));
 
-        User user = getCurrentUser();
-        Employee employee = employeeRepository.findByWorkEmail(user.getEmail())
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
+        Employee employee = securityUtils.getCurrentEmployee();
 
         if (taskTransfer.getTargetEmployee() == null || taskTransfer.getTargetEmployee().getId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target Employee Id is required");
@@ -136,7 +128,7 @@ public class TaskTransferService {
 
         request.setStatus("APPROVED");
         request.setReviewedAt(LocalDateTime.now());
-        request.setReviewedBy(getCurrentUser());
+        request.setReviewedBy(securityUtils.getCurrentUser());
 
         task.setAssignedTo(request.getTargetEmployee());
         taskRepository.save(task);
@@ -146,7 +138,7 @@ public class TaskTransferService {
                 task,
                 task.getStatus(),
                 task.getStatus(),
-                getCurrentUser(),
+                securityUtils.getCurrentUser(),
                 "Task Transferred from "
                         + request.getRequestedBy().getName()
                         + " to "
@@ -169,14 +161,14 @@ public class TaskTransferService {
 
         request.setStatus("REJECTED");
         request.setReviewedAt(LocalDateTime.now());
-        request.setReviewedBy(getCurrentUser());
+        request.setReviewedBy(securityUtils.getCurrentUser());
         request.setRejectionReason(reason);
 
         taskStatusHistoryService.createTaskStatusHistory(
                 request.getTask(),
                 request.getTask().getStatus(),
                 request.getTask().getStatus(),
-                getCurrentUser(),
+                securityUtils.getCurrentUser(),
                 "Task transfer request to " + request.getTargetEmployee().getName() + " rejected: " + reason
         );
 
@@ -217,7 +209,7 @@ public class TaskTransferService {
                     task,
                     task.getStatus(),
                     task.getStatus(),
-                    getCurrentUser(),
+                    securityUtils.getCurrentUser(),
                     "Undid task transfer. Reassigned task from "
                             + request.getTargetEmployee().getName()
                             + " back to "
@@ -228,7 +220,7 @@ public class TaskTransferService {
                     task,
                     task.getStatus(),
                     task.getStatus(),
-                    getCurrentUser(),
+                    securityUtils.getCurrentUser(),
                     "Undid task transfer rejection (original rejection reason: " + request.getRejectionReason() + ")"
             );
         }
