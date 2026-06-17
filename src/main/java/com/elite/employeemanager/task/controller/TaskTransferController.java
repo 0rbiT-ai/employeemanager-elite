@@ -5,6 +5,7 @@ import com.elite.employeemanager.task.service.TaskTransferService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -15,26 +16,31 @@ public class TaskTransferController {
     private final TaskTransferService taskTransferService;
 
     @PostMapping
+    @PreAuthorize("hasAuthority('TASK_VIEW')")
     public ResponseEntity<TaskTransfer> createTaskTransferRequest(@RequestBody TaskTransfer taskTransfer){
         return new ResponseEntity<>(taskTransferService.createTaskTransferRequest(taskTransfer), HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('TASK_VIEW')")
     public ResponseEntity<TaskTransfer> getTaskTransferById(@PathVariable Long id){
         return new ResponseEntity<>(taskTransferService.getTaskTransferById(id),HttpStatus.OK);
     }
 
     @PatchMapping("/{id}/approve")
+    @PreAuthorize("hasAuthority('TASK_UPDATE')")
     public ResponseEntity<TaskTransfer> approveTaskTransferRequest(@PathVariable Long id){
         return new ResponseEntity<>(taskTransferService.approveTaskTransferRequest(id),HttpStatus.OK);
     }
 
     @PatchMapping("/{id}/reject")
+    @PreAuthorize("hasAuthority('TASK_UPDATE')")
     public ResponseEntity<TaskTransfer> rejectTaskTransferRequest(@PathVariable Long id, @RequestBody String reason){
         return new ResponseEntity<>(taskTransferService.rejectTaskTransferRequest(id,reason),HttpStatus.OK);
     }
 
     @PatchMapping("/{id}/undo")
+    @PreAuthorize("hasAuthority('TASK_UPDATE')")
     public ResponseEntity<TaskTransfer> undoDecision(@PathVariable Long id){
         return new ResponseEntity<>(taskTransferService.undoDecision(id),HttpStatus.OK);
     }

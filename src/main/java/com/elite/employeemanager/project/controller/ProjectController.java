@@ -14,7 +14,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/projects")
-@PreAuthorize("hasAuthority('PROJECT_MANAGE')")
 @RequiredArgsConstructor
 public class ProjectController {
 
@@ -22,32 +21,38 @@ public class ProjectController {
     private final TaskService taskService;
 
     @PostMapping
+    @PreAuthorize("hasAuthority('PROJECT_CREATE')")
     public ResponseEntity<Project> addProject(@RequestBody Project project){
         return new ResponseEntity<>(projectService.addProject(project), HttpStatus.CREATED);
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('PROJECT_VIEW')")
     public ResponseEntity<List<Project>> getAllProjects(){
         return new ResponseEntity<>(projectService.getAllProjects(), HttpStatus.OK);
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('PROJECT_VIEW')")
     public ResponseEntity<Project> getProjectById(@PathVariable Long id){
         return new ResponseEntity<>(projectService.getProjectById(id), HttpStatus.OK);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('PROJECT_UPDATE')")
     public ResponseEntity<Project> updateProjectById(@PathVariable Long id, @RequestBody Project project){
         return new ResponseEntity<>(projectService.updateProjectById(id,project),HttpStatus.OK);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('PROJECT_DELETE')")
     public ResponseEntity<String> deleteProjectById(@PathVariable Long id, @RequestBody String reason){
         projectService.deleteProjectById(id,reason);
         return new ResponseEntity<>("Project Deleted", HttpStatus.OK);
     }
 
     @GetMapping("/{id}/tasks")
+    @PreAuthorize("hasAuthority('PROJECT_VIEW')")
     private ResponseEntity<List<Task>> getTasksByProjectId(@PathVariable Long id){
         return new ResponseEntity<>(taskService.getTasksByProjectId(id),HttpStatus.OK);
     }

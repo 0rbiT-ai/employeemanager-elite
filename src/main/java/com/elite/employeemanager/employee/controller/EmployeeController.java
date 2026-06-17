@@ -27,31 +27,31 @@ public class EmployeeController {
     private final TaskService taskService;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('EMPLOYEE_MANAGE')")
+    @PreAuthorize("hasAuthority('EMPLOYEE_CREATE')")
     public ResponseEntity<Employee> addEmployee(@RequestBody Employee employee){
         return new ResponseEntity<>(employeeService.addEmployee(employee),HttpStatus.CREATED);
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('EMPLOYEE_MANAGE')")
+    @PreAuthorize("hasAuthority('EMPLOYEE_VIEW')")
     public ResponseEntity<List<Employee>> getAllEmployees(){
         return ResponseEntity.ok(employeeService.getAllEmployees());
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('EMPLOYEE_MANAGE')")
+    @PreAuthorize("hasAuthority('EMPLOYEE_VIEW')")
     public ResponseEntity<Employee> getEmployeeById(@PathVariable Long id){
         return ResponseEntity.ok(employeeService.getEmployeeById(id));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('EMPLOYEE_MANAGE')")
+    @PreAuthorize("hasAuthority('EMPLOYEE_UPDATE')")
     public ResponseEntity<Employee> updateEmployeeById(@PathVariable Long id, @RequestBody Employee updatedEmployee){
         return ResponseEntity.ok(employeeService.updateEmployeeById(id,updatedEmployee));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('EMPLOYEE_MANAGE')")
+    @PreAuthorize("hasAuthority('EMPLOYEE_DELETE')")
     public ResponseEntity<String> deleteEmployeeById(@PathVariable Long id,
                                                      @RequestBody String reason){
         employeeService.deleteEmployeeById(id,reason);
@@ -59,19 +59,19 @@ public class EmployeeController {
     }
 
     @GetMapping("/{id}/teams")
-    @PreAuthorize("hasAuthority('EMPLOYEE_MANAGE') or hasAuthority('TEAM_MANAGE')")
+    @PreAuthorize("hasAuthority('EMPLOYEE_VIEW') or hasAuthority('TEAM_VIEW')")
     public ResponseEntity<List<Team>> getTeamsByEmployeeId(@PathVariable Long id){
         return new ResponseEntity<>(teamEmployeeService.getTeamsByEmployeeId(id), HttpStatus.OK);
     }
 
     @GetMapping("/{id}/projects")
-    @PreAuthorize("hasAuthority('EMPLOYEE_MANAGE') or hasAuthority('PROJECT_MANAGE')")
+    @PreAuthorize("hasAuthority('EMPLOYEE_VIEW') or hasAuthority('PROJECT_VIEW')")
     public ResponseEntity<List<Project>> getProjectsByEmployeeId(@PathVariable Long id){
         return new ResponseEntity<>(projectEmployeeService.getProjectsByEmployeeId(id),HttpStatus.OK);
     }
 
     @GetMapping("/{id}/tasks")
-    @PreAuthorize("hasAuthority('EMPLOYEE_MANAGE') or hasAuthority('TASK_VIEW')")
+    @PreAuthorize("hasAuthority('EMPLOYEE_VIEW') or hasAuthority('TASK_VIEW')")
     public ResponseEntity<List<Task>> getTasksByEmployeeId(@PathVariable Long id){
         return new ResponseEntity<>(taskService.getTasksByEmployeeId(id),HttpStatus.OK);
     }

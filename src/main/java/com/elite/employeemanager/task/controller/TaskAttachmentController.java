@@ -9,6 +9,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -23,6 +24,7 @@ public class TaskAttachmentController {
     private final TaskAttachmentService taskAttachmentService;
 
     @PostMapping("/{taskId}/attachments")
+    @PreAuthorize("hasAuthority('TASK_VIEW')")
     public ResponseEntity<TaskAttachment> uploadAttachment(@PathVariable Long taskId,
                                                            @RequestParam("file")MultipartFile file){
 
@@ -30,6 +32,7 @@ public class TaskAttachmentController {
     }
 
     @GetMapping("/{taskId}/attachments/{attachmentId}")
+    @PreAuthorize("hasAuthority('TASK_VIEW')")
     public ResponseEntity<InputStreamResource> downloadAttachment(@PathVariable Long taskId, @PathVariable Long attachmentId){
 
         TaskAttachment attachment = taskAttachmentService.getAttachment(attachmentId,taskId);
@@ -43,6 +46,7 @@ public class TaskAttachmentController {
     }
 
     @DeleteMapping("/{taskId}/attachments/{attachmentId}")
+    @PreAuthorize("hasAuthority('TASK_UPDATE')")
     public ResponseEntity<String> deleteAttachment(@PathVariable Long taskId, @PathVariable Long attachmentId){
         taskAttachmentService.deleteAttachment(attachmentId,taskId);
         return ResponseEntity.ok("File Deleted Successfully");
