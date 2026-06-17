@@ -12,7 +12,12 @@ LOCAL_DB_PASSWORD = your_postgres_password\
 JWT_SECRET = your_hs512_hex_jwt_secret\
 MAIL_USERNAME = your_email_username_here\
 MAIL_PASSWORD = your_email_password_here\
-FRONTEND_URL = your_frontend_url
+FRONTEND_URL = your_frontend_url\
+AWS_REGION = your_aws_region\
+AWS_BUCKET_NAME = your_aws_s3_bucket_name\
+AWS_ACCESS_KEY_ID = your_aws_access_key_id\
+AWS_SECRET_ACCESS_KEY = your_aws_secret_access_key
+
 
 ## 3. run app :
 
@@ -34,10 +39,10 @@ Access to protected endpoints is governed by authorities compiled from user role
 
 | Role Code | Role Name | Granted Authorities / Permissions | Allowed Modules / Endpoints |
 | :--- | :--- | :--- | :--- |
-| **`ADMIN`** | Admin | `EMPLOYEE_MANAGE`, `TEAM_MANAGE`, `PROJECT_MANAGE`, `USER_CREATE`, `TASK_CREATE`, `TASK_VIEW`, `TASK_ASSIGN`, `TIMESHEET_APPROVE`, `TIMESHEET_SUBMIT` | **All Endpoints** (Authentication, Employees, Teams, Team Members, Projects) |
-| **`TEAM_LEAD`** | Team Lead | `TEAM_MANAGE`, `PROJECT_MANAGE`, `TASK_CREATE`, `TASK_VIEW`, `TASK_ASSIGN`, `TIMESHEET_APPROVE`, `TIMESHEET_SUBMIT` | Authentication, Teams, Team Members, Projects (No Employee Management) |
-| **`SUB_LEAD`** | Sub Lead | `TIMESHEET_SUBMIT` (No default administrative permissions) | Authentication only (No Teams/Employee management unless assigned manually) |
-| **`EMPLOYEE`** | Employee | `TIMESHEET_SUBMIT` | Authentication only |
+| **`ADMIN`** | Admin | `EMPLOYEE_MANAGE`, `TEAM_MANAGE`, `PROJECT_MANAGE`, `USER_CREATE`, `TASK_CREATE`, `TASK_VIEW`, `TASK_ASSIGN`, `TIMESHEET_APPROVE`, `TIMESHEET_SUBMIT` | **All Endpoints** (Authentication, Employees, Teams, Projects, Tasks, Comments, Progress, Tags, Attachments, ETA requests, Task transfers) |
+| **`TEAM_LEAD`** | Team Lead | `TEAM_MANAGE`, `PROJECT_MANAGE`, `TASK_CREATE`, `TASK_VIEW`, `TASK_ASSIGN`, `TIMESHEET_APPROVE`, `TIMESHEET_SUBMIT` | Authentication, Teams, Projects, Tasks, Comments, Progress, Tags, Attachments, ETA requests, Task transfers (No Employee Management) |
+| **`SUB_LEAD`** | Sub Lead | `TIMESHEET_SUBMIT` (No default administrative permissions) | Authentication, Tasks (Assigned), Comments, Progress, Attachments, ETA/Transfer requests (No Employee/Team/Project management unless assigned manually) |
+| **`EMPLOYEE`** | Employee | `TIMESHEET_SUBMIT` | Authentication, Tasks (Assigned), Comments, Progress, Attachments, ETA/Transfer requests |
 
 ---
 
@@ -582,3 +587,326 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **Path Parameters:**
     *   `projectId` (Long, Required): Database ID of the project.
 *   **Success Response (200 OK):** Returns a list of `Employee` JSON objects belonging to the project.
+
+---
+
+## 7. Task Management Module
+**Base Path:** `/api/v1/tasks` (Requires `Authorization` header)
+
+### 7.1. Add Task
+*   **HTTP Method:** `POST`
+*   **Path:** `/`
+*   **Request Body ([Task](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/Task.java)):**
+    ```json
+    {
+      "taskNumber": "TSK-0002",
+      "project": {
+        "id": 1
+      },
+      "title": "Implement AWS S3 file upload",
+      "description": "Create service and controller to handle attachments",
+      "taskType": "FEATURE", // Allowed: "FEATURE", "BUG", "STORY", "RND", "CRC", "COC", "SUPPORT", "TASK", "POC"
+      "priority": "HIGH", // Allowed: "LOW", "MEDIUM", "HIGH", "CRITICAL"
+      "status": "OPEN", // Allowed: "OPEN", "IN_PROGRESS", "PENDING_REVIEW", "COMPLETED", "OVER_ETA", "TRANSFERRED", "ETA_EXTENDED", "REJECTED"
+      "etaHours": 12.50,
+      "etaDate": "2026-06-20", // Format: YYYY-MM-DD
+      "bugNumber": null, // Required if taskType is "BUG"
+      "assignedTo": {
+        "id": 2
+      },
+      "epic": "Sprint 2"
+    }
+    ```
+*   **Validation Rules:**
+    *   `taskNumber`, `title`, `project.id`, `taskType`, `priority`, `etaHours`, `etaDate` are required.
+    *   `taskNumber` must be unique.
+    *   If `taskType` is `"BUG"`, `bugNumber` is required.
+    *   If `assignedTo` is provided, the employee must belong to the specified project.
+*   **Success Response (201 Created):** Returns the created `Task` object.
+
+### 7.2. Get All Tasks
+*   **HTTP Method:** `GET`
+*   **Path:** `/`
+*   **Success Response (200 OK):** Returns a list of all `Task` objects.
+
+### 7.3. Get Task By ID
+*   **HTTP Method:** `GET`
+*   **Path:** `/{id}`
+*   **Success Response (200 OK):** Returns the corresponding `Task` object.
+
+### 7.4. Update Task (Partial Update)
+*   **HTTP Method:** `PATCH`
+*   **Path:** `/{id}`
+*   **Request Body (All fields optional):**
+    ```json
+    {
+      "title": "Implement AWS S3 file upload - Updated",
+      "status": "IN_PROGRESS",
+      "etaHours": 14.00
+    }
+    ```
+*   **Success Response (200 OK):** Returns the updated `Task` object. Automatically records audit history if status changes.
+
+### 7.5. Delete Task (Soft Delete)
+*   **HTTP Method:** `DELETE`
+*   **Path:** `/{id}`
+*   **Request Body (`text/plain`):** Raw string representing deletion reason. E.g. `"No longer needed"`
+*   **Success Response (200 OK):** `"Task Deleted Successfully"`
+
+### 7.6. Unassign Task
+*   **HTTP Method:** `PATCH`
+*   **Path:** `/{id}/unassign`
+*   **Success Response (200 OK):** `"Task unassigned"` (Deletes any pending ETA requests for this task).
+
+### 7.7. Get Task Comments
+*   **HTTP Method:** `GET`
+*   **Path:** `/{id}/comments`
+*   **Success Response (200 OK):** Returns a list of [TaskComment](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskComment.java) objects associated with the task.
+
+### 7.8. Get Task Status History
+*   **HTTP Method:** `GET`
+*   **Path:** `/{id}/history`
+*   **Success Response (200 OK):** Returns a list of [TaskStatusHistory](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskStatusHistory.java) objects showing status transition audit logs.
+
+### 7.9. Get Task Progress Logs
+*   **HTTP Method:** `GET`
+*   **Path:** `/{id}/progress`
+*   **Success Response (200 OK):** Returns a list of [TaskProgress](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskProgress.java) logs logged for this task.
+
+### 7.10. Get Task Tags
+*   **HTTP Method:** `GET`
+*   **Path:** `/{id}/tags`
+*   **Success Response (200 OK):** Returns a list of [TaskTag](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskTag.java) objects mapped to this task.
+
+### 7.11. Get Task Attachments
+*   **HTTP Method:** `GET`
+*   **Path:** `/{id}/attachments`
+*   **Success Response (200 OK):** Returns a list of [TaskAttachment](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskAttachment.java) metadata objects for this task.
+
+### 7.12. Get Task ETA Extension Requests
+*   **HTTP Method:** `GET`
+*   **Path:** `/{id}/eta-extensions`
+*   **Success Response (200 OK):** Returns a list of [EtaExtension](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/EtaExtension.java) requests for this task.
+
+### 7.13. Get Task Transfer Requests
+*   **HTTP Method:** `GET`
+*   **Path:** `/{id}/task-transfers`
+*   **Success Response (200 OK):** Returns a list of [TaskTransfer](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskTransfer.java) requests for this task.
+
+---
+
+## 8. Task Comments Module
+**Base Path:** `/api/v1/task-comments` (Requires `Authorization` header)
+
+### 8.1. Add Task Comment
+*   **HTTP Method:** `POST`
+*   **Path:** `/`
+*   **Request Body ([TaskComment](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskComment.java)):**
+    ```json
+    {
+      "commentText": "Configured the S3 clients",
+      "task": {
+        "id": 1
+      },
+      "author": {
+        "id": 2
+      }
+    }
+    ```
+*   **Success Response (201 Created):** Returns the created `TaskComment` object. The author is automatically set to the currently authenticated user.
+
+### 8.2. Delete Task Comment
+*   **HTTP Method:** `DELETE`
+*   **Path:** `/{id}`
+*   **Success Response (200 OK):** `"Comment Deleted Successfully"`
+
+---
+
+## 9. Task Progress Module
+**Base Path:** `/api/v1/task-progress` (Requires `Authorization` header)
+
+### 9.1. Add Task Progress Log
+*   **HTTP Method:** `POST`
+*   **Path:** `/`
+*   **Request Body ([TaskProgress](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskProgress.java)):**
+    ```json
+    {
+      "progressPercentage": 45,
+      "notes": "Added properties and S3Client config",
+      "task": {
+        "id": 1
+      },
+      "employee": {
+        "id": 2
+      }
+    }
+    ```
+*   **Validation Rules:**
+    *   `progressPercentage` must be between 0 and 100.
+    *   The task must be assigned to the current employee.
+    *   The employee must belong to the project of this task.
+*   **Success Response (201 Created):** Returns the created `TaskProgress` object.
+
+### 9.2. Delete Task Progress Log
+*   **HTTP Method:** `DELETE`
+*   **Path:** `/{id}`
+*   **Success Response (200 OK):** `"Task Progress Deleted"`
+
+---
+
+## 10. Task Tags & Tag Mapping Module
+**Base Paths:** `/api/v1/task-tags`, `/api/v1/tasks` (Requires `Authorization` header)
+
+### 10.1. Create Task Tag
+*   **HTTP Method:** `POST`
+*   **Path:** `/api/v1/task-tags`
+*   **Request Body ([TaskTag](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskTag.java)):**
+    ```json
+    {
+      "tagName": "backend"
+    }
+    ```
+*   **Success Response (201 Created):** Returns the created `TaskTag` object.
+
+### 10.2. Get All Task Tags
+*   **HTTP Method:** `GET`
+*   **Path:** `/api/v1/task-tags`
+*   **Success Response (200 OK):** Returns a list of all `TaskTag` objects.
+
+### 10.3. Get Task Tag By ID
+*   **HTTP Method:** `GET`
+*   **Path:** `/api/v1/task-tags/{id}`
+*   **Success Response (200 OK):** Returns the corresponding `TaskTag` object.
+
+### 10.4. Delete Task Tag
+*   **HTTP Method:** `DELETE`
+*   **Path:** `/api/v1/task-tags/{id}`
+*   **Success Response (200 OK):** `"Task Tag deleted successfully"`
+
+### 10.5. Add Tag to Task
+*   **HTTP Method:** `POST`
+*   **Path:** `/api/v1/tasks/{taskId}/tags/{tagId}`
+*   **Success Response (201 Created):** Returns the created [TaskTagMapping](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskTagMapping.java) object.
+
+### 10.6. Remove Tag from Task
+*   **HTTP Method:** `DELETE`
+*   **Path:** `/api/v1/tasks/{taskId}/tags/{tagId}`
+*   **Success Response (200 OK):** `"Tag removed from Task Successfully"`
+
+---
+
+## 11. Task Attachments Module (AWS S3)
+**Base Path:** `/api/v1/tasks` (Requires `Authorization` header)
+
+### 11.1. Upload Attachment
+*   **HTTP Method:** `POST`
+*   **Path:** `/{taskId}/attachments`
+*   **Request Headers:** `Content-Type: multipart/form-data`
+*   **Request Parameters:**
+    *   `file` (MultipartFile): The file to upload (Max: 50MB).
+*   **Success Response (201 Created):** Returns the created [TaskAttachment](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskAttachment.java) metadata object. File is uploaded to the AWS S3 bucket.
+
+### 11.2. Download Attachment
+*   **HTTP Method:** `GET`
+*   **Path:** `/{taskId}/attachments/{attachmentId}`
+*   **Success Response (200 OK):** Returns the binary file stream (`application/octet-stream`) with `Content-Disposition: attachment; filename="..."`.
+
+### 11.3. Delete Attachment
+*   **HTTP Method:** `DELETE`
+*   **Path:** `/{taskId}/attachments/{attachmentId}`
+*   **Success Response (200 OK):** `"File Deleted Successfully"`
+
+---
+
+## 12. ETA Extension Requests Module
+**Base Path:** `/api/v1/eta-extensions` (Requires `Authorization` header)
+
+### 12.1. Create ETA Extension Request
+*   **HTTP Method:** `POST`
+*   **Path:** `/`
+*   **Request Body ([EtaExtension](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/EtaExtension.java)):**
+    ```json
+    {
+      "task": {
+        "id": 1
+      },
+      "newEtaDate": "2026-06-25",
+      "reason": "Need more time to write integration tests"
+    }
+    ```
+*   **Validation Rules:**
+    *   The task must not be completed or deleted.
+    *   The task must be assigned to the current employee.
+    *   `newEtaDate` cannot be on or before the task's current ETA date.
+    *   The task must not already have a pending ETA request.
+*   **Success Response (201 Created):** Returns the created `EtaExtension` object (initial status: `"PENDING"`).
+
+### 12.2. Get ETA Extension Request By ID
+*   **HTTP Method:** `GET`
+*   **Path:** `/{id}`
+*   **Success Response (200 OK):** Returns the corresponding `EtaExtension` request object.
+
+### 12.3. Approve ETA Extension Request
+*   **HTTP Method:** `PATCH`
+*   **Path:** `/{id}/approve`
+*   **Success Response (200 OK):** Returns the updated `EtaExtension` object (status: `"APPROVED"`). Updates the task's `etaDate` and `extendedEtaDate` to the requested new date.
+
+### 12.4. Reject ETA Extension Request
+*   **HTTP Method:** `PATCH`
+*   **Path:** `/{id}/reject`
+*   **Request Body (`text/plain`):** Raw string representing rejection reason. E.g. `"Not justified"`
+*   **Success Response (200 OK):** Returns the updated `EtaExtension` object (status: `"REJECTED"`, sets `rejectionReason`).
+
+### 12.5. Undo ETA Extension Request Decision
+*   **HTTP Method:** `PATCH`
+*   **Path:** `/{id}/undo`
+*   **Success Response (200 OK):** Returns the updated `EtaExtension` object (status reset to `"PENDING"`). Reverts the task's `etaDate` and `extendedEtaDate` if the decision was previously approved.
+
+---
+
+## 13. Task Transfer Requests Module
+**Base Path:** `/api/v1/task-transfers` (Requires `Authorization` header)
+
+### 13.1. Create Task Transfer Request
+*   **HTTP Method:** `POST`
+*   **Path:** `/`
+*   **Request Body ([TaskTransfer](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskTransfer.java)):**
+    ```json
+    {
+      "task": {
+        "id": 1
+      },
+      "targetEmployee": {
+        "id": 3
+      },
+      "reason": "Going on leave next week, transferring to coworker"
+    }
+    ```
+*   **Validation Rules:**
+    *   The task must not be completed or deleted.
+    *   The task must be assigned to the current employee.
+    *   The target employee must not be deleted/inactive, must belong to the task's project, and must not be the current assignee.
+    *   The task must not already have a pending transfer request.
+*   **Success Response (201 Created):** Returns the created `TaskTransfer` object (initial status: `"PENDING"`).
+
+### 13.2. Get Task Transfer Request By ID
+*   **HTTP Method:** `GET`
+*   **Path:** `/{id}`
+*   **Success Response (200 OK):** Returns the corresponding `TaskTransfer` request object.
+
+### 13.3. Approve Task Transfer Request
+*   **HTTP Method:** `PATCH`
+*   **Path:** `/{id}/approve`
+*   **Success Response (200 OK):** Returns the updated `TaskTransfer` object (status: `"APPROVED"`). Reassigns the task to the target employee and deletes any pending ETA extension requests for this task.
+
+### 13.4. Reject Task Transfer Request
+*   **HTTP Method:** `PATCH`
+*   **Path:** `/{id}/reject`
+*   **Request Body (`text/plain`):** Raw string representing rejection reason. E.g. `"Target employee has too many tasks already"`
+*   **Success Response (200 OK):** Returns the updated `TaskTransfer` object (status: `"REJECTED"`, sets `rejectionReason`).
+
+### 13.5. Undo Task Transfer Request Decision
+*   **HTTP Method:** `PATCH`
+*   **Path:** `/{id}/undo`
+*   **Success Response (200 OK):** Returns the updated `TaskTransfer` object (status reset to `"PENDING"`). Reassigns the task back to the original requester if the decision was previously approved.
+
