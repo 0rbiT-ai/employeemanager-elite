@@ -31,7 +31,7 @@ public class ProjectEmployeeService {
     private final TaskService taskService;
     private final SecurityUtils securityUtils;
 
-    private void validateProjectManagementAccess(Project project) {
+    private void validateProjectManagementAccess(Project project, Long targetEmployeeId) {
         Employee currentEmployee = securityUtils.getCurrentEmployee();
 
         if (currentEmployee.getRoles().contains("ADMIN")) {
@@ -50,7 +50,8 @@ public class ProjectEmployeeService {
                 .findByProjectAndEmployee(project, currentEmployee)
                 .isPresent();
 
-        if (!isMember) {
+        // Allow Team Leads and Sub Leads to add/remove themselves to/from any project
+        if (!isMember && !currentEmployee.getId().equals(targetEmployeeId)) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Current User is not member of this project"
@@ -65,7 +66,7 @@ public class ProjectEmployeeService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Project Not Found"));
 
-        validateProjectManagementAccess(project);
+        validateProjectManagementAccess(project, employeeId);
 
         if (projectEmployeeRepository.findByProjectAndEmployee(project,employee).isPresent()){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Employee is already member of this project");
@@ -87,7 +88,7 @@ public class ProjectEmployeeService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Project Not Found"));
 
-        validateProjectManagementAccess(project);
+        validateProjectManagementAccess(project, employeeId);
 
         ProjectEmployee projectEmployee = projectEmployeeRepository.findByProjectAndEmployee(project,employee)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee does not belong to this project"));
