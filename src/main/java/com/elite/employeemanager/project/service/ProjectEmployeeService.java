@@ -11,6 +11,10 @@ import com.elite.employeemanager.task.entity.Task;
 import com.elite.employeemanager.task.repository.TaskRepository;
 import com.elite.employeemanager.task.repository.TaskTransferRepository;
 import com.elite.employeemanager.task.service.TaskService;
+import com.elite.employeemanager.team.entity.Team;
+import com.elite.employeemanager.team.entity.TeamEmployee;
+import com.elite.employeemanager.team.repository.TeamRepository;
+import com.elite.employeemanager.team.repository.TeamEmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -18,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +34,8 @@ public class ProjectEmployeeService {
     private final TaskTransferRepository taskTransferRepository;
     private final TaskRepository taskRepository;
     private final TaskService taskService;
+    private final TeamRepository teamRepository;
+    private final TeamEmployeeRepository teamEmployeeRepository;
     private final SecurityUtils securityUtils;
 
     private void validateProjectManagementAccess(Project project, Long targetEmployeeId) {
@@ -50,11 +57,31 @@ public class ProjectEmployeeService {
                 .findByProjectAndEmployee(project, currentEmployee)
                 .isPresent();
 
-        // Allow Team Leads and Sub Leads to add/remove themselves to/from any project
-        if (!isMember && !currentEmployee.getId().equals(targetEmployeeId)) {
+        boolean teamMemberInProject = false;
+        if (currentEmployee.getRoles().contains("TEAM_LEAD") || currentEmployee.getRoles().contains("SUB_LEAD")) {
+            List<Team> leadTeams = teamRepository.findByLead(currentEmployee);
+            List<Team> subLeadTeams = teamRepository.findBySubLead(currentEmployee);
+
+            List<Employee> teamMembers = Stream.of(
+                    leadTeams.isEmpty() ? List.<TeamEmployee>of() : teamEmployeeRepository.findByTeamIn(leadTeams),
+                    subLeadTeams.isEmpty() ? List.<TeamEmployee>of() : teamEmployeeRepository.findByTeamIn(subLeadTeams)
+            )
+            .flatMap(List::stream)
+            .map(TeamEmployee::getEmployee)
+            .distinct()
+            .toList();
+
+            if (!teamMembers.isEmpty()) {
+                teamMemberInProject = projectEmployeeRepository.findByEmployeeIn(teamMembers).stream()
+                        .anyMatch(pe -> pe.getProject().getId().equals(project.getId()));
+            }
+        }
+
+        // Allow Team Leads and Sub Leads to add/remove themselves to/from any project, or if they or their team member is in the project
+        if (!isMember && !teamMemberInProject && !currentEmployee.getId().equals(targetEmployeeId)) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "Current User is not member of this project"
+                    "Current User is not member of this project and has no team members in it"
             );
         }
     }
@@ -110,7 +137,28 @@ public class ProjectEmployeeService {
         if (!currentEmployee.getRoles().contains("ADMIN")) {
             boolean isMember = projectEmployeeRepository.findByProjectAndEmployee(project, currentEmployee).isPresent();
             if (!isMember) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User Not Member of Project");
+                boolean hasAccessAsLead = false;
+                if (currentEmployee.getRoles().contains("TEAM_LEAD") || currentEmployee.getRoles().contains("SUB_LEAD")) {
+                    List<Team> leadTeams = teamRepository.findByLead(currentEmployee);
+                    List<Team> subLeadTeams = teamRepository.findBySubLead(currentEmployee);
+
+                    List<Employee> teamMembers = Stream.of(
+                            leadTeams.isEmpty() ? List.<TeamEmployee>of() : teamEmployeeRepository.findByTeamIn(leadTeams),
+                            subLeadTeams.isEmpty() ? List.<TeamEmployee>of() : teamEmployeeRepository.findByTeamIn(subLeadTeams)
+                    )
+                    .flatMap(List::stream)
+                    .map(TeamEmployee::getEmployee)
+                    .distinct()
+                    .toList();
+
+                    if (!teamMembers.isEmpty()) {
+                        hasAccessAsLead = projectEmployeeRepository.findByEmployeeIn(teamMembers).stream()
+                                .anyMatch(pe -> pe.getProject().getId().equals(projectId));
+                    }
+                }
+                if (!hasAccessAsLead) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User Not Member of Project");
+                }
             }
         }
 
@@ -125,10 +173,27 @@ public class ProjectEmployeeService {
         Employee currentEmployee = securityUtils.getCurrentEmployee();
         if (!currentEmployee.getRoles().contains("ADMIN")
                 && !currentEmployee.getId().equals(employeeId)) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Current User is not allowed to view another employee's projects"
-            );
+
+            boolean isManagedEmployee = false;
+            if (currentEmployee.getRoles().contains("TEAM_LEAD") || currentEmployee.getRoles().contains("SUB_LEAD")) {
+                List<Team> leadTeams = teamRepository.findByLead(currentEmployee);
+                List<Team> subLeadTeams = teamRepository.findBySubLead(currentEmployee);
+
+                isManagedEmployee = Stream.of(
+                        leadTeams.isEmpty() ? List.<TeamEmployee>of() : teamEmployeeRepository.findByTeamIn(leadTeams),
+                        subLeadTeams.isEmpty() ? List.<TeamEmployee>of() : teamEmployeeRepository.findByTeamIn(subLeadTeams)
+                )
+                .flatMap(List::stream)
+                .map(TeamEmployee::getEmployee)
+                .anyMatch(e -> e.getId().equals(employeeId));
+            }
+
+            if (!isManagedEmployee) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Current User is not allowed to view another employee's projects"
+                );
+            }
         }
 
         List<ProjectEmployee> projectEmployees = projectEmployeeRepository.findByEmployee(employee);

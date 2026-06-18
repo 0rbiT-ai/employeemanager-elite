@@ -5,6 +5,10 @@ import com.elite.employeemanager.project.entity.Project;
 import com.elite.employeemanager.project.entity.ProjectEmployee;
 import com.elite.employeemanager.project.repository.ProjectEmployeeRepository;
 import com.elite.employeemanager.project.repository.ProjectRepository;
+import com.elite.employeemanager.team.entity.Team;
+import com.elite.employeemanager.team.entity.TeamEmployee;
+import com.elite.employeemanager.team.repository.TeamRepository;
+import com.elite.employeemanager.team.repository.TeamEmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -15,6 +19,7 @@ import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +27,8 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final ProjectEmployeeRepository projectEmployeeRepository;
+    private final TeamRepository teamRepository;
+    private final TeamEmployeeRepository teamEmployeeRepository;
     private final SecurityUtils securityUtils;
 
     @Transactional
@@ -73,12 +80,39 @@ public class ProjectService {
 
     public List<Project> getAllProjects(){
         Employee employee = securityUtils.getCurrentEmployee();
-        if (!employee.getRoles().contains("ADMIN")){
-            List<ProjectEmployee> memberships = projectEmployeeRepository.findByEmployee(employee);
-            return memberships.stream().map(ProjectEmployee::getProject).toList();
+        if (employee.getRoles().contains("ADMIN")){
+            return projectRepository.findAll();
         }
 
-        return projectRepository.findAll();
+        List<Project> ownProjects = projectEmployeeRepository.findByEmployee(employee).stream()
+                .map(ProjectEmployee::getProject)
+                .toList();
+
+        if (employee.getRoles().contains("TEAM_LEAD") || employee.getRoles().contains("SUB_LEAD")) {
+            List<Team> leadTeams = teamRepository.findByLead(employee);
+            List<Team> subLeadTeams = teamRepository.findBySubLead(employee);
+
+            List<Employee> teamMembers = Stream.of(
+                    leadTeams.isEmpty() ? List.<TeamEmployee>of() : teamEmployeeRepository.findByTeamIn(leadTeams),
+                    subLeadTeams.isEmpty() ? List.<TeamEmployee>of() : teamEmployeeRepository.findByTeamIn(subLeadTeams)
+            )
+            .flatMap(List::stream)
+            .map(TeamEmployee::getEmployee)
+            .distinct()
+            .toList();
+
+            if (!teamMembers.isEmpty()) {
+                List<Project> memberProjects = projectEmployeeRepository.findByEmployeeIn(teamMembers).stream()
+                        .map(ProjectEmployee::getProject)
+                        .toList();
+
+                return Stream.concat(ownProjects.stream(), memberProjects.stream())
+                        .distinct()
+                        .toList();
+            }
+        }
+
+        return ownProjects;
     }
 
     public Project getProjectById(Long id){
@@ -87,13 +121,38 @@ public class ProjectService {
 
         Employee employee = securityUtils.getCurrentEmployee();
 
-        if (!employee.getRoles().contains("ADMIN")){
-            boolean isMember = projectEmployeeRepository.findByProjectAndEmployee(project, employee).isPresent();
-            if (!isMember){
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Current User Not Member of Project");
+        if (employee.getRoles().contains("ADMIN")) {
+            return project;
+        }
+
+        boolean isMember = projectEmployeeRepository.findByProjectAndEmployee(project, employee).isPresent();
+        if (isMember) {
+            return project;
+        }
+
+        if (employee.getRoles().contains("TEAM_LEAD") || employee.getRoles().contains("SUB_LEAD")) {
+            List<Team> leadTeams = teamRepository.findByLead(employee);
+            List<Team> subLeadTeams = teamRepository.findBySubLead(employee);
+
+            List<Employee> teamMembers = Stream.of(
+                    leadTeams.isEmpty() ? List.<TeamEmployee>of() : teamEmployeeRepository.findByTeamIn(leadTeams),
+                    subLeadTeams.isEmpty() ? List.<TeamEmployee>of() : teamEmployeeRepository.findByTeamIn(subLeadTeams)
+            )
+            .flatMap(List::stream)
+            .map(TeamEmployee::getEmployee)
+            .distinct()
+            .toList();
+
+            if (!teamMembers.isEmpty()) {
+                boolean teamMemberInProject = projectEmployeeRepository.findByEmployeeIn(teamMembers).stream()
+                        .anyMatch(pe -> pe.getProject().getId().equals(id));
+                if (teamMemberInProject) {
+                    return project;
+                }
             }
         }
-        return project;
+
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Current User Not Member of Project");
     }
 
     @Transactional
