@@ -20,4 +20,6 @@ public interface ProjectEmployeeRepository extends JpaRepository<ProjectEmployee
     void deleteByEmployee(Employee employee);
 
     void deleteByProject(Project existingProject);
+
+    List<ProjectEmployee> findByEmployeeIn(List<Employee> leadTeamMembers);
 }

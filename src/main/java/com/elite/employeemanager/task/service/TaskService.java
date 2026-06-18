@@ -4,6 +4,7 @@ import com.elite.employeemanager.auth.user.entity.User;
 import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.employee.repository.EmployeeRepository;
 import com.elite.employeemanager.project.entity.Project;
+import com.elite.employeemanager.project.entity.ProjectEmployee;
 import com.elite.employeemanager.project.repository.ProjectEmployeeRepository;
 import com.elite.employeemanager.project.repository.ProjectRepository;
 import com.elite.employeemanager.task.entity.Task;
@@ -11,9 +12,15 @@ import com.elite.employeemanager.task.repository.EtaExtensionRepository;
 import com.elite.employeemanager.task.repository.TaskCommentRepository;
 import com.elite.employeemanager.task.repository.TaskRepository;
 import com.elite.employeemanager.task.repository.TaskTagMappingRepository;
+import com.elite.employeemanager.task.utility.TaskUtility;
+import com.elite.employeemanager.team.entity.Team;
+import com.elite.employeemanager.team.entity.TeamEmployee;
+import com.elite.employeemanager.team.repository.TeamEmployeeRepository;
+import com.elite.employeemanager.team.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -21,6 +28,7 @@ import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -29,12 +37,16 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
     private final EmployeeRepository employeeRepository;
+    private final TeamRepository teamRepository;
+    private final TeamEmployeeRepository teamEmployeeRepository;
     private final ProjectEmployeeRepository projectEmployeeRepository;
     private final TaskStatusHistoryService taskStatusHistoryService;
     private final EtaExtensionRepository etaExtensionRepository;
     private final SecurityUtils securityUtils;
+    private final TaskUtility taskUtility;
 
     public Task createTask(Task task){
+
         if (task.getEtaHours() == null) {
             task.setEtaHours(new java.math.BigDecimal("0.00"));
         }
@@ -53,6 +65,8 @@ public class TaskService {
         Project project = projectRepository.findById(task.getProject().getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
         task.setProject(project);
+
+        taskUtility.validateProjectManagementAccess(task);
 
         if (task.getTaskType()==null||task.getTaskType().isBlank()){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Task Type is required");
@@ -92,16 +106,158 @@ public class TaskService {
     }
 
     public List<Task> getAllTasks(){
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN")){
+
+            List<Task> assignedTasks = taskRepository.findByAssignedTo(currentEmployee);
+
+            if (!currentEmployee.getRoles().contains("TEAM_LEAD") && !currentEmployee.getRoles().contains("SUB_LEAD")){
+                return assignedTasks;
+            }
+
+            List<Team> leadTeams = teamRepository.findByLead(currentEmployee);
+            List<Team> subLeadTeams = teamRepository.findBySubLead(currentEmployee);
+
+            List<Task> leadTeamMemberProjectTasks = List.of();
+            if (!leadTeams.isEmpty()) {
+
+                List<Employee> leadTeamMembers = teamEmployeeRepository.findByTeamIn(leadTeams)
+                        .stream()
+                        .map(TeamEmployee::getEmployee)
+                        .distinct()
+                        .toList();
+
+                if (!leadTeamMembers.isEmpty()) {
+
+                    List<Project> leadTeamMemberProjects = projectEmployeeRepository.findByEmployeeIn(leadTeamMembers)
+                            .stream()
+                            .map(ProjectEmployee::getProject)
+                            .distinct()
+                            .toList();
+
+                    if (!leadTeamMemberProjects.isEmpty()) {
+                        leadTeamMemberProjectTasks = taskRepository.findByProjectIn(leadTeamMemberProjects);
+                    }
+                }
+            }
+
+            List<Task> subLeadTeamMemberProjectTasks = List.of();
+            if (!subLeadTeams.isEmpty()) {
+
+                List<Employee> subLeadTeamMembers = teamEmployeeRepository.findByTeamIn(subLeadTeams)
+                        .stream()
+                        .map(TeamEmployee::getEmployee)
+                        .distinct()
+                        .toList();
+
+                if (!subLeadTeamMembers.isEmpty()) {
+
+                    List<Project> subLeadTeamMemberProjects = projectEmployeeRepository.findByEmployeeIn(subLeadTeamMembers)
+                            .stream()
+                            .map(ProjectEmployee::getProject)
+                            .distinct()
+                            .toList();
+
+                    if (!subLeadTeamMemberProjects.isEmpty()) {
+                        subLeadTeamMemberProjectTasks = taskRepository.findByProjectIn(subLeadTeamMemberProjects);
+                    }
+                }
+            }
+
+            List<Task> currentLeadProjectTasks = List.of();
+
+            List<Project> currentLeadProjects = projectEmployeeRepository.findByEmployee(currentEmployee)
+                    .stream()
+                    .map(ProjectEmployee::getProject)
+                    .distinct()
+                    .toList();
+
+            if (!currentLeadProjects.isEmpty()) {
+                currentLeadProjectTasks = taskRepository.findByProjectIn(currentLeadProjects);
+            }
+
+            return Stream.of(leadTeamMemberProjectTasks,subLeadTeamMemberProjectTasks,currentLeadProjectTasks,assignedTasks)
+                    .flatMap(List::stream)
+                    .distinct()
+                    .toList();
+        }
         return taskRepository.findAll();
     }
 
     public Task getTaskById(Long id){
-        return taskRepository.findById(id)
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task not found with id : "+id));
+
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Task not found with id : " + id
+                ));
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+
+        if (currentEmployee.getRoles().contains("ADMIN")) {
+            return task;
+        }
+
+        if (task.getAssignedTo() != null &&
+                task.getAssignedTo().getId().equals(currentEmployee.getId())) {
+            return task;
+        }
+
+        if (currentEmployee.getRoles().contains("TEAM_LEAD")
+                || currentEmployee.getRoles().contains("SUB_LEAD")) {
+
+            List<Team> leadTeams = teamRepository.findByLead(currentEmployee);
+            List<Team> subLeadTeams = teamRepository.findBySubLead(currentEmployee);
+
+            List<Employee> leadTeamMembers = teamEmployeeRepository.findByTeamIn(leadTeams)
+                    .stream()
+                    .map(TeamEmployee::getEmployee)
+                    .distinct()
+                    .toList();
+
+            List<Employee> subLeadTeamMembers = teamEmployeeRepository.findByTeamIn(subLeadTeams)
+                    .stream()
+                    .map(TeamEmployee::getEmployee)
+                    .distinct()
+                    .toList();
+
+            List<Project> visibleProjects = Stream.of(
+                            projectEmployeeRepository.findByEmployeeIn(leadTeamMembers)
+                                    .stream()
+                                    .map(ProjectEmployee::getProject)
+                                    .toList(),
+
+                            projectEmployeeRepository.findByEmployeeIn(subLeadTeamMembers)
+                                    .stream()
+                                    .map(ProjectEmployee::getProject)
+                                    .toList(),
+
+                            projectEmployeeRepository.findByEmployee(currentEmployee)
+                                    .stream()
+                                    .map(ProjectEmployee::getProject)
+                                    .toList()
+                    )
+                    .flatMap(List::stream)
+                    .distinct()
+                    .toList();
+
+            if (task.getProject() != null &&
+                    visibleProjects.contains(task.getProject())) {
+                return task;
+            }
+        }
+
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User is not allowed to view this task");
+
     }
 
     @Transactional
     public Task updateTaskById(Long id, Task task){
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN") && !currentEmployee.getRoles().contains("TEAM_LEAD") && !currentEmployee.getRoles().contains("SUB_LEAD")){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User is not allowed to modify this task");
+        }
 
         Task existingTask = getTaskById(id);
 
@@ -239,6 +395,12 @@ public class TaskService {
 
     @Transactional
     public void unassignTaskById(Long id){
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN") && !currentEmployee.getRoles().contains("TEAM_LEAD") && !currentEmployee.getRoles().contains("SUB_LEAD")){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User is not allowed to modify this task");
+        }
+
         Task task = getTaskById(id);
         task.setAssignedTo(null);
         etaExtensionRepository.deleteByTaskAndStatus(task,"PENDING");
@@ -247,6 +409,12 @@ public class TaskService {
 
     @Transactional
     public void deleteTaskById(Long id, String reason){
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN") && !currentEmployee.getRoles().contains("TEAM_LEAD") && !currentEmployee.getRoles().contains("SUB_LEAD")){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User is not allowed to modify this task");
+        }
+
         Task task = getTaskById(id);
 
         task.setIsDeleted(true);
@@ -259,13 +427,92 @@ public class TaskService {
     public List<Task> getTasksByEmployeeId(Long employeeId){
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
-        return taskRepository.findByAssignedTo(employee);
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+
+        if (currentEmployee.getRoles().contains("ADMIN")) {
+            return taskRepository.findByAssignedTo(employee);
+        }
+
+        if (currentEmployee.getId().equals(employeeId)) {
+            return taskRepository.findByAssignedTo(employee);
+        }
+
+        if (currentEmployee.getRoles().contains("TEAM_LEAD") || currentEmployee.getRoles().contains("SUB_LEAD")) {
+
+            List<Team> leadTeams = teamRepository.findByLead(currentEmployee);
+            List<Team> subLeadTeams = teamRepository.findBySubLead(currentEmployee);
+
+            boolean isManagedEmployee =
+                    teamEmployeeRepository.findByTeamIn(leadTeams).stream()
+                            .map(TeamEmployee::getEmployee)
+                            .anyMatch(e -> e.getId().equals(employeeId))
+                            ||
+                            teamEmployeeRepository.findByTeamIn(subLeadTeams).stream()
+                                    .map(TeamEmployee::getEmployee)
+                                    .anyMatch(e -> e.getId().equals(employeeId));
+
+            if (isManagedEmployee) {
+                return taskRepository.findByAssignedTo(employee);
+            }
+        }
+
+        throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Current User is not allowed to view this employee's tasks");
     }
 
     public List<Task> getTasksByProjectId(Long projectId){
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Project Not Found"));
-        return taskRepository.findByProject(project);
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+
+        if (currentEmployee.getRoles().contains("ADMIN")) {
+            return taskRepository.findByProject(project);
+        }
+
+        if (!currentEmployee.getRoles().contains("TEAM_LEAD")
+                && !currentEmployee.getRoles().contains("SUB_LEAD")) {
+
+            return taskRepository.findByProjectAndAssignedTo(
+                    project,
+                    currentEmployee
+            );
+        }
+
+        if (currentEmployee.getRoles().contains("TEAM_LEAD") || currentEmployee.getRoles().contains("SUB_LEAD")) {
+
+            List<Team> leadTeams = teamRepository.findByLead(currentEmployee);
+            List<Team> subLeadTeams = teamRepository.findBySubLead(currentEmployee);
+
+            List<Employee> managedEmployees = Stream.of(
+                            teamEmployeeRepository.findByTeamIn(leadTeams),
+                            teamEmployeeRepository.findByTeamIn(subLeadTeams)
+                    )
+                    .flatMap(List::stream)
+                    .map(TeamEmployee::getEmployee)
+                    .distinct()
+                    .toList();
+
+            boolean teamMemberInProject =
+                    projectEmployeeRepository.findByEmployeeIn(managedEmployees)
+                            .stream()
+                            .anyMatch(pe -> pe.getProject().getId().equals(projectId));
+
+            boolean currentLeadInProject =
+                    projectEmployeeRepository.findByEmployee(currentEmployee)
+                            .stream()
+                            .anyMatch(pe -> pe.getProject().getId().equals(projectId));
+
+            if (teamMemberInProject || currentLeadInProject) {
+                return taskRepository.findByProject(project);
+            }
+        }
+
+        throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Current User is not allowed to view tasks for this project");
     }
 
     public List<Task> getBacklogTasks(){

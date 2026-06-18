@@ -18,4 +18,6 @@ public interface TeamEmployeeRepository extends JpaRepository<TeamEmployee, Long
     void deleteByEmployee(Employee employee);
 
     void deleteByTeam(Team existingTeam);
+
+    List<TeamEmployee> findByTeamIn(List<Team> leadTeams);
 }
