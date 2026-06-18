@@ -1,5 +1,6 @@
 package com.elite.employeemanager.team.service;
 
+import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.employee.repository.EmployeeRepository;
 import com.elite.employeemanager.team.entity.Team;
@@ -21,6 +22,7 @@ public class TeamEmployeeService {
     private final TeamEmployeeRepository teamEmployeeRepository;
     private final EmployeeRepository employeeRepository;
     private final TeamRepository teamRepository;
+    private final SecurityUtils securityUtils;
 
     @Transactional
     public TeamEmployee addEmployeeToTeam(Long teamId, Long employeeId){
@@ -29,6 +31,15 @@ public class TeamEmployeeService {
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Team Not Found"));
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN")){
+            boolean isLead = team.getLead()!=null && team.getLead().getId().equals(currentEmployee.getId());
+            boolean isSubLead = team.getSubLead()!=null && team.getSubLead().getId().equals(currentEmployee.getId());
+            if (!isLead && !isSubLead){
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Current User not allowed to assign members to team");
+            }
+        }
 
         if (teamEmployeeRepository.findByTeamAndEmployee(team,employee).isPresent()){
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Employee already belongs to this team");
@@ -50,6 +61,15 @@ public class TeamEmployeeService {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Team Not Found"));
 
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN")){
+            boolean isLead = team.getLead()!=null && team.getLead().getId().equals(currentEmployee.getId());
+            boolean isSubLead = team.getSubLead()!=null && team.getSubLead().getId().equals(currentEmployee.getId());
+            if (!isLead && !isSubLead){
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Current User not allowed to assign members to team");
+            }
+        }
+
         TeamEmployee teamEmployee = teamEmployeeRepository.findByTeamAndEmployee(team,employee)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee does not belong to this team"));
 
@@ -60,6 +80,16 @@ public class TeamEmployeeService {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Team Not Found"));
 
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN")){
+            boolean isLead = team.getLead() != null && team.getLead().getId().equals(currentEmployee.getId());
+            boolean isSubLead = team.getSubLead() != null && team.getSubLead().getId().equals(currentEmployee.getId());
+            boolean isMember = teamEmployeeRepository.findByTeamAndEmployee(team, currentEmployee).isPresent();
+            if (!isMember && !isLead && !isSubLead){
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Current User does not belong to this Team");
+            }
+        }
+
         List<TeamEmployee> teamEmployees = teamEmployeeRepository.findByTeam(team);
 
         return teamEmployees.stream().map(TeamEmployee::getEmployee).toList();
@@ -68,6 +98,11 @@ public class TeamEmployeeService {
     public List<Team> getTeamsByEmployeeId(Long employeeId){
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Employee Not Found"));
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN") && !currentEmployee.getId().equals(employeeId)){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Current User does not belong to this Team");
+        }
 
         List<TeamEmployee> teamEmployees = teamEmployeeRepository.findByEmployee(employee);
 
