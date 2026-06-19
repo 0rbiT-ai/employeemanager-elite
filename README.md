@@ -39,10 +39,10 @@ Access to protected endpoints is governed by authorities compiled from user role
 
 | Role Code | Role Name | Granted Authorities / Permissions | Allowed Modules / Endpoints |
 | :--- | :--- | :--- | :--- |
-| **`ADMIN`** | Admin | `EMPLOYEE_MANAGE`, `TEAM_MANAGE`, `PROJECT_MANAGE`, `USER_CREATE`, `TASK_CREATE`, `TASK_VIEW`, `TASK_ASSIGN`, `TIMESHEET_APPROVE`, `TIMESHEET_SUBMIT` | **All Endpoints** (Authentication, Employees, Teams, Projects, Tasks, Comments, Progress, Tags, Attachments, ETA requests, Task transfers) |
-| **`TEAM_LEAD`** | Team Lead | `TEAM_MANAGE`, `PROJECT_MANAGE`, `TASK_CREATE`, `TASK_VIEW`, `TASK_ASSIGN`, `TIMESHEET_APPROVE`, `TIMESHEET_SUBMIT` | Authentication, Teams, Projects, Tasks, Comments, Progress, Tags, Attachments, ETA requests, Task transfers (No Employee Management) |
-| **`SUB_LEAD`** | Sub Lead | `TIMESHEET_SUBMIT` (No default administrative permissions) | Authentication, Tasks (Assigned), Comments, Progress, Attachments, ETA/Transfer requests (No Employee/Team/Project management unless assigned manually) |
-| **`EMPLOYEE`** | Employee | `TIMESHEET_SUBMIT` | Authentication, Tasks (Assigned), Comments, Progress, Attachments, ETA/Transfer requests |
+| **`ADMIN`** | Admin | `EMPLOYEE_CREATE`, `EMPLOYEE_VIEW`, `EMPLOYEE_UPDATE`, `EMPLOYEE_DELETE`, `TEAM_CREATE`, `TEAM_VIEW`, `TEAM_UPDATE`, `TEAM_DELETE`, `PROJECT_CREATE`, `PROJECT_VIEW`, `PROJECT_UPDATE`, `PROJECT_DELETE`, `TASK_CREATE`, `TASK_VIEW`, `TASK_UPDATE`, `TASK_DELETE`, `USER_CREATE`, `USER_VIEW`, `USER_UPDATE`, `USER_DELETE` | **All Endpoints** (Authentication, Employees, Teams, Projects, Tasks, Comments, Progress, Tags, Attachments, ETA requests, Task transfers) |
+| **`TEAM_LEAD`** | Team Lead | `TEAM_CREATE`, `TEAM_VIEW`, `TEAM_UPDATE`, `TEAM_DELETE`, `PROJECT_CREATE`, `PROJECT_VIEW`, `PROJECT_UPDATE`, `PROJECT_DELETE`, `TASK_CREATE`, `TASK_VIEW`, `TASK_UPDATE`, `TASK_DELETE` | Authentication, Teams, Projects, Tasks, Comments, Progress, Tags, Attachments, ETA requests, Task transfers (No Employee Management) |
+| **`SUB_LEAD`** | Sub Lead | `TASK_VIEW` (No default administrative permissions) | Authentication, Tasks (Assigned), Comments, Progress, Attachments, ETA/Transfer requests (No Employee/Team/Project management unless assigned manually) |
+| **`EMPLOYEE`** | Employee | `TASK_VIEW` | Authentication, Tasks (Assigned), Comments, Progress, Attachments, ETA/Transfer requests |
 
 ---
 
@@ -53,7 +53,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **HTTP Method:** `POST`
 *   **Path:** `/login`
 *   **Access Allowed:** Public (All Roles)
-*   **Request Body ([LoginRequest](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/auth/jwt/dto/LoginRequest.java)):**
+*   **Request Body ([LoginRequest](./src/main/java/com/elite/employeemanager/auth/jwt/dto/LoginRequest.java)):**
     ```json
     {
       "email": "employee@teamops.com",
@@ -63,7 +63,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **Cookies Set (Set-Cookie Response Headers):**
     *   `jwtToken`: HTTPOnly, sameSite="Lax", path="/" (containing JWT Access Token)
     *   `refreshToken`: HTTPOnly, sameSite="Lax", path="/" (containing Refresh Token UUID)
-*   **Success Response (200 OK - [AuthenticationResponse](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/auth/jwt/dto/AuthenticationResponse.java)):**
+*   **Success Response (200 OK - [AuthenticationResponse](./src/main/java/com/elite/employeemanager/auth/jwt/dto/AuthenticationResponse.java)):**
     ```json
     {
       "user": {
@@ -100,7 +100,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **HTTP Method:** `POST`
 *   **Path:** `/forgot-password`
 *   **Access Allowed:** Public (All Roles)
-*   **Request Body ([ForgotPasswordRequest](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/auth/passwordreset/dto/ForgotPasswordRequest.java)):**
+*   **Request Body ([ForgotPasswordRequest](./src/main/java/com/elite/employeemanager/auth/passwordreset/dto/ForgotPasswordRequest.java)):**
     ```json
     {
       "email": "employee@teamops.com"
@@ -113,7 +113,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **HTTP Method:** `POST`
 *   **Path:** `/reset-password`
 *   **Access Allowed:** Public (All Roles)
-*   **Request Body ([ResetPasswordRequest](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/auth/passwordreset/dto/ResetPasswordRequest.java)):**
+*   **Request Body ([ResetPasswordRequest](./src/main/java/com/elite/employeemanager/auth/passwordreset/dto/ResetPasswordRequest.java)):**
     ```json
     {
       "token": "a189f38f-dc42...",
@@ -126,13 +126,13 @@ Access to protected endpoints is governed by authorities compiled from user role
 -----
 
 ## 2. Employee Management Module
-**Base Path:** `/api/v1/employees` (Requires `Authorization` header)
-*   **Access Allowed Roles:** **`ADMIN`** only (checks `EMPLOYEE_MANAGE` authority)
+**Base Path:** `/api/v1/employees` (Requires HTTPOnly cookies)
+*   **Access Allowed:** Checked via `EMPLOYEE_CREATE`, `EMPLOYEE_VIEW`, `EMPLOYEE_UPDATE`, `EMPLOYEE_DELETE` permissions (typically granted to `ADMIN`)
 
 ### 2.1. Add Employee
 *   **HTTP Method:** `POST`
 *   **Path:** `/`
-*   **Request Body ([Employee](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/employee/entity/Employee.java)):**
+*   **Request Body ([Employee](./src/main/java/com/elite/employeemanager/employee/entity/Employee.java)):**
     ```json
     {
       "employeeCode": "EMP-0050",
@@ -207,12 +207,12 @@ Access to protected endpoints is governed by authorities compiled from user role
 ### 2.6. Get Teams by Employee ID
 *   **HTTP Method:** `GET`
 *   **Path:** `/{id}/teams` (Full path: `/api/v1/employees/{id}/teams`)
-*   **Access Allowed Roles:** **`ADMIN`** and **`TEAM_LEAD`** (checks `EMPLOYEE_MANAGE` or `TEAM_MANAGE` authority)
+*   **Access Allowed:** Checks `EMPLOYEE_VIEW` or `TEAM_VIEW` permission
 *   **Description:** Retrieves a list of all active teams that a specific employee belongs to.
 *   **Path Parameters:**
     *   `id` (Long, Required): Database ID of the employee.
 *   **Request Payload:** None
-*   **Success Response (200 OK):** Returns a JSON Array of [Team](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/team/entity/Team.java) objects:
+*   **Success Response (200 OK):** Returns a JSON Array of [Team](./src/main/java/com/elite/employeemanager/team/entity/Team.java) objects:
     ```json
     [
       {
@@ -248,12 +248,12 @@ Access to protected endpoints is governed by authorities compiled from user role
 ### 2.7. Get Projects by Employee ID
 *   **HTTP Method:** `GET`
 *   **Path:** `/{id}/projects` (Full path: `/api/v1/employees/{id}/projects`)
-*   **Access Allowed Roles:** **`ADMIN`** and **`TEAM_LEAD`** (checks `EMPLOYEE_MANAGE` or `PROJECT_MANAGE` authority)
+*   **Access Allowed:** Checks `EMPLOYEE_VIEW` or `PROJECT_VIEW` permission
 *   **Description:** Retrieves a list of all projects a specific employee is assigned to.
 *   **Path Parameters:**
     *   `id` (Long, Required): Database ID of the employee.
 *   **Request Payload:** None
-*   **Success Response (200 OK):** Returns a JSON Array of [Project](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/project/entity/Project.java) objects:
+*   **Success Response (200 OK):** Returns a JSON Array of [Project](./src/main/java/com/elite/employeemanager/project/entity/Project.java) objects:
     ```json
     [
       {
@@ -281,12 +281,12 @@ Access to protected endpoints is governed by authorities compiled from user role
 ### 2.8. Get Tasks by Employee ID
 *   **HTTP Method:** `GET`
 *   **Path:** `/{id}/tasks` (Full path: `/api/v1/employees/{id}/tasks`)
-*   **Access Allowed Roles:** **`ADMIN`** and **`TEAM_LEAD`** (checks `EMPLOYEE_MANAGE` or `TASK_VIEW` authority)
+*   **Access Allowed:** Checks `EMPLOYEE_VIEW` or `TASK_VIEW` permission
 *   **Description:** Retrieves a list of all tasks assigned to a specific employee.
 *   **Path Parameters:**
     *   `id` (Long, Required): Database ID of the employee.
 *   **Request Payload:** None
-*   **Success Response (200 OK):** Returns a JSON Array of [Task](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/Task.java) objects:
+*   **Success Response (200 OK):** Returns a JSON Array of [Task](./src/main/java/com/elite/employeemanager/task/entity/Task.java) objects:
     ```json
     [
       {
@@ -341,13 +341,13 @@ Access to protected endpoints is governed by authorities compiled from user role
 ---
 
 ## 3. Teams Module
-**Base Path:** `/api/v1/teams` (Requires `Authorization` header)
-*   **Access Allowed Roles:** **`ADMIN`** and **`TEAM_LEAD`** (checks `TEAM_MANAGE` authority)
+**Base Path:** `/api/v1/teams` (Requires HTTPOnly cookies)
+*   **Access Allowed:** Checked via `TEAM_CREATE`, `TEAM_VIEW`, `TEAM_UPDATE`, `TEAM_DELETE` permissions (typically granted to `ADMIN` and `TEAM_LEAD`)
 
 ### 3.1. Create Team
 *   **HTTP Method:** `POST`
 *   **Path:** `/`
-*   **Request Body ([Team](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/team/entity/Team.java)):**
+*   **Request Body ([Team](./src/main/java/com/elite/employeemanager/team/entity/Team.java)):**
     ```json
     {
       "teamName": "Engineering Core", // Unique
@@ -411,8 +411,8 @@ Access to protected endpoints is governed by authorities compiled from user role
 ---
 
 ## 4. Team Members Module (Junction)
-**Base Path:** `/api/v1/teams` (Requires `Authorization` header)
-*   **Access Allowed Roles:** **`ADMIN`** and **`TEAM_LEAD`** (checks `TEAM_MANAGE` authority)
+**Base Path:** `/api/v1/teams` (Requires HTTPOnly cookies)
+*   **Access Allowed:** Checks `TEAM_UPDATE` permission
 
 ### 4.1. Add Employee to Team
 *   **HTTP Method:** `POST`
@@ -420,7 +420,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **Path Parameters:**
     *   `teamId` (Long, Required): Database ID of the target team.
     *   `employeeId` (Long, Required): Database ID of the employee to join the team.
-*   **Success Response (201 Created):** Returns the created [TeamEmployee](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/team/entity/TeamEmployee.java) relationship object:
+*   **Success Response (201 Created):** Returns the created [TeamEmployee](./src/main/java/com/elite/employeemanager/team/entity/TeamEmployee.java) relationship object:
     ```json
     {
       "id": 1,
@@ -461,13 +461,13 @@ Access to protected endpoints is governed by authorities compiled from user role
 ---
 
 ## 5. Project Management Module
-**Base Path:** `/api/v1/projects` (Requires `Authorization` header)
-*   **Access Allowed Roles:** **`ADMIN`** and **`TEAM_LEAD`** (checks `PROJECT_MANAGE` authority)
+**Base Path:** `/api/v1/projects` (Requires HTTPOnly cookies)
+*   **Access Allowed:** Checked via `PROJECT_CREATE`, `PROJECT_VIEW`, `PROJECT_UPDATE`, `PROJECT_DELETE` permissions (typically granted to `ADMIN` and `TEAM_LEAD`)
 
 ### 5.1. Add Project
 *   **HTTP Method:** `POST`
 *   **Path:** `/`
-*   **Request Body ([Project](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/project/entity/Project.java)):**
+*   **Request Body ([Project](./src/main/java/com/elite/employeemanager/project/entity/Project.java)):**
     ```json
     {
       "projectName": "Elite Portal",
@@ -529,8 +529,8 @@ Access to protected endpoints is governed by authorities compiled from user role
 ---
 
 ## 6. Project Members Module (Junction)
-**Base Path:** `/api/v1/projects` (Requires `Authorization` header)
-*   **Access Allowed Roles:** **`ADMIN`** and **`TEAM_LEAD`** (checks `PROJECT_MANAGE` authority)
+**Base Path:** `/api/v1/projects` (Requires HTTPOnly cookies)
+*   **Access Allowed:** Checks `PROJECT_UPDATE` or `PROJECT_VIEW` permission
 
 ### 6.1. Add Employee to Project
 *   **HTTP Method:** `POST`
@@ -538,7 +538,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **Path Parameters:**
     *   `projectId` (Long, Required): Database ID of the target project.
     *   `employeeId` (Long, Required): Database ID of the employee to join the project.
-*   **Success Response (201 Created):** Returns the created [ProjectEmployee](file:///c:/Users/dantd/OneDrive/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/project/entity/ProjectEmployee.java) relationship object:
+*   **Success Response (201 Created):** Returns the created [ProjectEmployee](./src/main/java/com/elite/employeemanager/project/entity/ProjectEmployee.java) relationship object:
     ```json
     {
       "id": 1,
@@ -591,12 +591,12 @@ Access to protected endpoints is governed by authorities compiled from user role
 ---
 
 ## 7. Task Management Module
-**Base Path:** `/api/v1/tasks` (Requires `Authorization` header)
+**Base Path:** `/api/v1/tasks` (Requires HTTPOnly cookies)
 
 ### 7.1. Add Task
 *   **HTTP Method:** `POST`
 *   **Path:** `/`
-*   **Request Body ([Task](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/Task.java)):**
+*   **Request Body ([Task](./src/main/java/com/elite/employeemanager/task/entity/Task.java)):**
     ```json
     {
       "taskNumber": "TSK-0002",
@@ -661,47 +661,47 @@ Access to protected endpoints is governed by authorities compiled from user role
 ### 7.7. Get Task Comments
 *   **HTTP Method:** `GET`
 *   **Path:** `/{id}/comments`
-*   **Success Response (200 OK):** Returns a list of [TaskComment](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskComment.java) objects associated with the task.
+*   **Success Response (200 OK):** Returns a list of [TaskComment](./src/main/java/com/elite/employeemanager/task/entity/TaskComment.java) objects associated with the task.
 
 ### 7.8. Get Task Status History
 *   **HTTP Method:** `GET`
 *   **Path:** `/{id}/history`
-*   **Success Response (200 OK):** Returns a list of [TaskStatusHistory](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskStatusHistory.java) objects showing status transition audit logs.
+*   **Success Response (200 OK):** Returns a list of [TaskStatusHistory](./src/main/java/com/elite/employeemanager/task/entity/TaskStatusHistory.java) objects showing status transition audit logs.
 
 ### 7.9. Get Task Progress Logs
 *   **HTTP Method:** `GET`
 *   **Path:** `/{id}/progress`
-*   **Success Response (200 OK):** Returns a list of [TaskProgress](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskProgress.java) logs logged for this task.
+*   **Success Response (200 OK):** Returns a list of [TaskProgress](./src/main/java/com/elite/employeemanager/task/entity/TaskProgress.java) logs logged for this task.
 
 ### 7.10. Get Task Tags
 *   **HTTP Method:** `GET`
 *   **Path:** `/{id}/tags`
-*   **Success Response (200 OK):** Returns a list of [TaskTag](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskTag.java) objects mapped to this task.
+*   **Success Response (200 OK):** Returns a list of [TaskTag](./src/main/java/com/elite/employeemanager/task/entity/TaskTag.java) objects mapped to this task.
 
 ### 7.11. Get Task Attachments
 *   **HTTP Method:** `GET`
 *   **Path:** `/{id}/attachments`
-*   **Success Response (200 OK):** Returns a list of [TaskAttachment](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskAttachment.java) metadata objects for this task.
+*   **Success Response (200 OK):** Returns a list of [TaskAttachment](./src/main/java/com/elite/employeemanager/task/entity/TaskAttachment.java) metadata objects for this task.
 
 ### 7.12. Get Task ETA Extension Requests
 *   **HTTP Method:** `GET`
 *   **Path:** `/{id}/eta-extensions`
-*   **Success Response (200 OK):** Returns a list of [EtaExtension](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/EtaExtension.java) requests for this task.
+*   **Success Response (200 OK):** Returns a list of [EtaExtension](./src/main/java/com/elite/employeemanager/task/entity/EtaExtension.java) requests for this task.
 
 ### 7.13. Get Task Transfer Requests
 *   **HTTP Method:** `GET`
 *   **Path:** `/{id}/task-transfers`
-*   **Success Response (200 OK):** Returns a list of [TaskTransfer](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskTransfer.java) requests for this task.
+*   **Success Response (200 OK):** Returns a list of [TaskTransfer](./src/main/java/com/elite/employeemanager/task/entity/TaskTransfer.java) requests for this task.
 
 ---
 
 ## 8. Task Comments Module
-**Base Path:** `/api/v1/task-comments` (Requires `Authorization` header)
+**Base Path:** `/api/v1/task-comments` (Requires HTTPOnly cookies)
 
 ### 8.1. Add Task Comment
 *   **HTTP Method:** `POST`
 *   **Path:** `/`
-*   **Request Body ([TaskComment](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskComment.java)):**
+*   **Request Body ([TaskComment](./src/main/java/com/elite/employeemanager/task/entity/TaskComment.java)):**
     ```json
     {
       "commentText": "Configured the S3 clients",
@@ -723,12 +723,12 @@ Access to protected endpoints is governed by authorities compiled from user role
 ---
 
 ## 9. Task Progress Module
-**Base Path:** `/api/v1/task-progress` (Requires `Authorization` header)
+**Base Path:** `/api/v1/task-progress` (Requires HTTPOnly cookies)
 
 ### 9.1. Add Task Progress Log
 *   **HTTP Method:** `POST`
 *   **Path:** `/`
-*   **Request Body ([TaskProgress](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskProgress.java)):**
+*   **Request Body ([TaskProgress](./src/main/java/com/elite/employeemanager/task/entity/TaskProgress.java)):**
     ```json
     {
       "progressPercentage": 45,
@@ -755,12 +755,12 @@ Access to protected endpoints is governed by authorities compiled from user role
 ---
 
 ## 10. Task Tags & Tag Mapping Module
-**Base Paths:** `/api/v1/task-tags`, `/api/v1/tasks` (Requires `Authorization` header)
+**Base Paths:** `/api/v1/task-tags`, `/api/v1/tasks` (Requires HTTPOnly cookies)
 
 ### 10.1. Create Task Tag
 *   **HTTP Method:** `POST`
 *   **Path:** `/api/v1/task-tags`
-*   **Request Body ([TaskTag](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskTag.java)):**
+*   **Request Body ([TaskTag](./src/main/java/com/elite/employeemanager/task/entity/TaskTag.java)):**
     ```json
     {
       "tagName": "backend"
@@ -786,7 +786,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 ### 10.5. Add Tag to Task
 *   **HTTP Method:** `POST`
 *   **Path:** `/api/v1/tasks/{taskId}/tags/{tagId}`
-*   **Success Response (201 Created):** Returns the created [TaskTagMapping](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskTagMapping.java) object.
+*   **Success Response (201 Created):** Returns the created [TaskTagMapping](./src/main/java/com/elite/employeemanager/task/entity/TaskTagMapping.java) object.
 
 ### 10.6. Remove Tag from Task
 *   **HTTP Method:** `DELETE`
@@ -796,7 +796,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 ---
 
 ## 11. Task Attachments Module (AWS S3)
-**Base Path:** `/api/v1/tasks` (Requires `Authorization` header)
+**Base Path:** `/api/v1/tasks` (Requires HTTPOnly cookies)
 
 ### 11.1. Upload Attachment
 *   **HTTP Method:** `POST`
@@ -804,7 +804,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **Request Headers:** `Content-Type: multipart/form-data`
 *   **Request Parameters:**
     *   `file` (MultipartFile): The file to upload (Max: 50MB).
-*   **Success Response (201 Created):** Returns the created [TaskAttachment](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskAttachment.java) metadata object. File is uploaded to the AWS S3 bucket.
+*   **Success Response (201 Created):** Returns the created [TaskAttachment](./src/main/java/com/elite/employeemanager/task/entity/TaskAttachment.java) metadata object. File is uploaded to the AWS S3 bucket.
 
 ### 11.2. Download Attachment
 *   **HTTP Method:** `GET`
@@ -819,12 +819,12 @@ Access to protected endpoints is governed by authorities compiled from user role
 ---
 
 ## 12. ETA Extension Requests Module
-**Base Path:** `/api/v1/eta-extensions` (Requires `Authorization` header)
+**Base Path:** `/api/v1/eta-extensions` (Requires HTTPOnly cookies)
 
 ### 12.1. Create ETA Extension Request
 *   **HTTP Method:** `POST`
 *   **Path:** `/`
-*   **Request Body ([EtaExtension](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/EtaExtension.java)):**
+*   **Request Body ([EtaExtension](./src/main/java/com/elite/employeemanager/task/entity/EtaExtension.java)):**
     ```json
     {
       "task": {
@@ -865,12 +865,12 @@ Access to protected endpoints is governed by authorities compiled from user role
 ---
 
 ## 13. Task Transfer Requests Module
-**Base Path:** `/api/v1/task-transfers` (Requires `Authorization` header)
+**Base Path:** `/api/v1/task-transfers` (Requires HTTPOnly cookies)
 
 ### 13.1. Create Task Transfer Request
 *   **HTTP Method:** `POST`
 *   **Path:** `/`
-*   **Request Body ([TaskTransfer](file:///c:/Users/Akilesh/Desktop/employeemanager-elite/src/main/java/com/elite/employeemanager/task/entity/TaskTransfer.java)):**
+*   **Request Body ([TaskTransfer](./src/main/java/com/elite/employeemanager/task/entity/TaskTransfer.java)):**
     ```json
     {
       "task": {
@@ -909,4 +909,59 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **HTTP Method:** `PATCH`
 *   **Path:** `/{id}/undo`
 *   **Success Response (200 OK):** Returns the updated `TaskTransfer` object (status reset to `"PENDING"`). Reassigns the task back to the original requester if the decision was previously approved.
+
+---
+
+## 14. Membership Behavior & Access Rules Matrix
+
+The following tables describe the membership behavior and cross-entity authorization checks (managed dynamically in the service layer) for Teams, Projects, Dynamic Role Assignment, and Tasks:
+
+### 14.1. Teams Module Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Create Team** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | |
+| **View Teams List** | All Teams | Teams they lead/sublead/belong to | Teams they lead/sublead/belong to | Teams they belong to | |
+| **View Team By ID** | Any Team | Lead/SubLead/Member | Lead/SubLead/Member | Member | |
+| **Update Team** | Any Team | Teams they lead | Teams they sublead | Blocked (403) | |
+| **Delete Team** | Any Team | Teams they lead | Teams they sublead | Blocked (403) | |
+| **Unassign SubLead** | Any Team | Teams they lead | Blocked (403) | Blocked (403) | |
+| **View Team Members** | Any Team | Teams they lead/sublead/member of | Teams they lead/sublead/member of | Teams they belong to | |
+| **Add Team Members** | Any Team | Teams they lead | Teams they sublead | Blocked (403) | |
+| **Remove Team Members** | Any Team | Teams they lead | Teams they sublead | Blocked (403) | |
+| **View Another Employee's Teams** | Allowed | Blocked (403) | Blocked (403) | Blocked (403) | |
+| **View Own Teams** | Allowed | Allowed | Allowed | Allowed | |
+
+### 14.2. Projects & Project Management Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Create Project** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | |
+| **View Projects List** | All Projects | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Projects they belong to | |
+| **View Project By ID** | Any Project | Must be project member or team member must be member of project | Must be project member or team member must be member of project | Must be Project Member | |
+| **View Project Members** | Any Project | Must be project member or team member must be member of project | Must be project member or team member must be member of project | Must be Project Member | |
+| **View Own Projects** | Allowed | Allowed | Allowed | Allowed | |
+| **View Another Employee's Projects** | Allowed | Allowed if target employee is team member of team they lead | Allowed if target employee is team member of team they sublead | Blocked (403) | |
+| **Update Project** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
+| **Delete Project** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
+| **Add Project Members** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
+| **Remove Project Members** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
+
+### 14.3. Dynamic Role Assignment
+*   **Employee becomes Team Lead of an ACTIVE team**: Gets `TEAM_LEAD` role.
+*   **Employee becomes Sub Lead of an ACTIVE team**: Gets `SUB_LEAD` role.
+*   **Employee no longer leads any ACTIVE team**: `TEAM_LEAD` role removed.
+*   **Employee no longer subleads any ACTIVE team**: `SUB_LEAD` role removed.
+*   **Employee is only a regular team member**: `EMPLOYEE` role only.
+
+### 14.4. Tasks Module Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Create Task** | Any Project | Visible Projects | Visible Projects | Blocked (403) | Requires project access |
+| **View All Tasks** | All Tasks | Own Tasks + Managed Team Project Tasks | Own Tasks + Managed Team Project Tasks | Own Assigned Tasks | |
+| **View Task By ID** | Any Task | Visible Task | Visible Task | Only Assigned Task | |
+| **Update Task** | Any Task | Visible Task | Visible Task | Blocked (403) | |
+| **Delete Task** | Any Task | Visible Task | Visible Task | Blocked (403) | |
+| **Unassign Task** | Any Task | Visible Task | Visible Task | Blocked (403) | |
+| **View Tasks By Employee ID** | Any Employee | Managed Employees + Self | Managed Employees + Self | Self Only | |
+| **View Tasks By Project ID** | Any Project | Visible Projects | Visible Projects | Only own tasks within project | |
+| **View Backlog Tasks** | All Backlog Tasks | All Backlog Tasks | All Backlog Tasks | All Backlog Tasks | Currently unsecured in code |
 
