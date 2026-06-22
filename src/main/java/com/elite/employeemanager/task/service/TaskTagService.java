@@ -1,5 +1,7 @@
 package com.elite.employeemanager.task.service;
 
+import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
+import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.task.entity.TaskTag;
 import com.elite.employeemanager.task.repository.TaskTagRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,8 +17,15 @@ import java.util.List;
 public class TaskTagService {
 
     private final TaskTagRepository taskTagRepository;
+    private final SecurityUtils securityUtils;
 
     public TaskTag createTaskTag(TaskTag tag){
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN") && !currentEmployee.getRoles().contains("TEAM_LEAD") && !currentEmployee.getRoles().contains("SUB_LEAD")){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User is not allowed create tags");
+        }
+
         if (tag.getTagName()==null||tag.getTagName().isBlank()){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Tag Name is required");
         }
@@ -37,6 +46,10 @@ public class TaskTagService {
     }
 
     public void deleteTaskTagById(Long id){
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN") && !currentEmployee.getRoles().contains("TEAM_LEAD") && !currentEmployee.getRoles().contains("SUB_LEAD")){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User is not allowed delete tags");
+        }
         TaskTag taskTag = getTaskTagById(id);
         taskTagRepository.delete(taskTag);
     }
