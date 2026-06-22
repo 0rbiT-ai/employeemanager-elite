@@ -28,10 +28,13 @@ public class EtaExtensionService {
     private final EmployeeRepository employeeRepository;
     private final TaskStatusHistoryService taskStatusHistoryService;
     private final SecurityUtils securityUtils;
+    private final TaskService taskService;
 
     public EtaExtension getEtaExtensionById(Long id){
-        return etaExtensionRepository.findById(id)
+        EtaExtension request = etaExtensionRepository.findById(id)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"ETA Request Not Found"));
+        taskService.getTaskById(request.getTask().getId()); // task visibility check
+        return request;
     }
 
     @Transactional
@@ -41,10 +44,13 @@ public class EtaExtensionService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task Id is required");
         }
 
-        Task task = taskRepository.findById(etaExtension.getTask().getId())
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task Not Found"));
+        Task task = taskService.getTaskById(etaExtension.getTask().getId());
 
         Employee employee = securityUtils.getCurrentEmployee();
+
+        if (task.getAssignedTo() != null && !task.getAssignedTo().getId().equals(employee.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Task not assigned to the current user");
+        }
 
         if (etaExtensionRepository.existsByTaskAndStatus(task,"PENDING")){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Task already has pending ETA Request");
@@ -79,6 +85,12 @@ public class EtaExtensionService {
 
     @Transactional
     public EtaExtension approveEtaExtensionRequest(Long requestId){
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN") && !currentEmployee.getRoles().contains("TEAM_LEAD") && !currentEmployee.getRoles().contains("SUB_LEAD")){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User is not allowed to modify this task");
+        }
+
         EtaExtension request = getEtaExtensionById(requestId);
         Task task = request.getTask();
 
@@ -127,6 +139,12 @@ public class EtaExtensionService {
 
     @Transactional
     public EtaExtension rejectEtaExtensionRequest(Long requestId, String reason){
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN") && !currentEmployee.getRoles().contains("TEAM_LEAD") && !currentEmployee.getRoles().contains("SUB_LEAD")){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User is not allowed to modify this task");
+        }
+
         EtaExtension request = getEtaExtensionById(requestId);
 
         if (!"PENDING".equals(request.getStatus())) {
@@ -154,6 +172,12 @@ public class EtaExtensionService {
 
     @Transactional
     public EtaExtension undoDecision(Long requestId){
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN") && !currentEmployee.getRoles().contains("TEAM_LEAD") && !currentEmployee.getRoles().contains("SUB_LEAD")){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User is not allowed to modify this task");
+        }
+
         EtaExtension request = getEtaExtensionById(requestId);
         Task task = request.getTask();
         if (Boolean.TRUE.equals(task.getIsDeleted())) {
@@ -201,8 +225,7 @@ public class EtaExtensionService {
     }
 
     public List<EtaExtension> getEtaExtensionRequestsByTaskId(Long taskId){
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task Not Found"));
+        Task task = taskService.getTaskById(taskId);
 
         return etaExtensionRepository.findByTask(task);
     }

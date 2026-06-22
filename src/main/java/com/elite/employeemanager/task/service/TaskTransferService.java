@@ -32,10 +32,13 @@ public class TaskTransferService {
     private final ProjectEmployeeRepository projectEmployeeRepository;
     private final EtaExtensionRepository etaExtensionRepository;
     private final SecurityUtils securityUtils;
+    private final TaskService taskService;
 
     public TaskTransfer getTaskTransferById(Long id){
-        return taskTransferRepository.findById(id)
+        TaskTransfer request = taskTransferRepository.findById(id)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task Transfer Request Not Found"));
+        taskService.getTaskById(request.getTask().getId()); // check task visibility
+        return request;
     }
 
     @Transactional
@@ -45,8 +48,7 @@ public class TaskTransferService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task Id is required");
         }
 
-        Task task = taskRepository.findById(taskTransfer.getTask().getId())
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task Not Found"));
+        Task task = taskService.getTaskById(taskTransfer.getTask().getId());
 
         Employee employee = securityUtils.getCurrentEmployee();
 
@@ -92,6 +94,11 @@ public class TaskTransferService {
 
     @Transactional
     public TaskTransfer approveTaskTransferRequest(Long requestId){
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN") && !currentEmployee.getRoles().contains("TEAM_LEAD") && !currentEmployee.getRoles().contains("SUB_LEAD")){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User is not allowed to modify this task");
+        }
+
         TaskTransfer request = getTaskTransferById(requestId);
         Task task = request.getTask();
 
@@ -150,6 +157,11 @@ public class TaskTransferService {
 
     @Transactional
     public TaskTransfer rejectTaskTransferRequest(Long requestId, String reason){
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN") && !currentEmployee.getRoles().contains("TEAM_LEAD") && !currentEmployee.getRoles().contains("SUB_LEAD")){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User is not allowed to modify this task");
+        }
+
         TaskTransfer request = getTaskTransferById(requestId);
 
         if (!"PENDING".equals(request.getStatus())) {
@@ -177,6 +189,11 @@ public class TaskTransferService {
 
     @Transactional
     public TaskTransfer undoDecision(Long requestId){
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        if (!currentEmployee.getRoles().contains("ADMIN") && !currentEmployee.getRoles().contains("TEAM_LEAD") && !currentEmployee.getRoles().contains("SUB_LEAD")){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User is not allowed to modify this task");
+        }
+
         TaskTransfer request = getTaskTransferById(requestId);
         Task task = request.getTask();
         if (Boolean.TRUE.equals(task.getIsDeleted())) {
@@ -234,9 +251,7 @@ public class TaskTransferService {
     }
 
     public List<TaskTransfer> getTaskTransferByTaskId(Long taskId){
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task Not Found"));
-
+        Task task = taskService.getTaskById(taskId);
         return taskTransferRepository.findByTask(task);
     }
 
