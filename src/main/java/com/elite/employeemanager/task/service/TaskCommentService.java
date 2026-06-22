@@ -22,18 +22,14 @@ import java.util.Objects;
 public class TaskCommentService {
 
     private final TaskCommentRepository taskCommentRepository;
-    private final EmployeeRepository employeeRepository;
     private final TaskRepository taskRepository;
     private final SecurityUtils securityUtils;
+    private final TaskService taskService;
 
     public TaskComment addTaskComment(TaskComment comment){
 
         if (comment.getCommentText()==null||comment.getCommentText().isBlank()){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Comment Text is required");
-        }
-
-        if (comment.getAuthor()==null || comment.getAuthor().getId()==null){
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Author Id is required");
         }
 
         if (comment.getTask()==null || comment.getTask().getId()==null){
@@ -42,8 +38,7 @@ public class TaskCommentService {
 
         Employee author = securityUtils.getCurrentEmployee();
 
-        Task task = taskRepository.findById(comment.getTask().getId())
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task not found"));
+        Task task = taskService.getTaskById(comment.getTask().getId());
 
         comment.setTask(task);
         comment.setAuthor(author);
@@ -51,14 +46,21 @@ public class TaskCommentService {
     }
 
     public List<TaskComment> getTaskCommentsByTaskId(Long taskId){
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task not found"));
+        Task task = taskService.getTaskById(taskId);
         return taskCommentRepository.findByTask(task);
     }
 
     public void deleteTaskCommentById(Long id){
         TaskComment comment = taskCommentRepository.findById(id)
                         .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Comment not found"));
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        boolean isAdmin = currentEmployee.getRoles().contains("ADMIN");
+        boolean isAuthor = currentEmployee.getId().equals(comment.getAuthor().getId());
+        if (!isAdmin && !isAuthor){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not authorized to delete this comment");
+        }
+
         taskCommentRepository.delete(comment);
     }
 }
