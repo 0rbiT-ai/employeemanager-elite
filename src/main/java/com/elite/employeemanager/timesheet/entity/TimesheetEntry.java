@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Check(constraints = "work_category in ('FEATURE', 'BUG', 'STORY', 'RND', 'CRC', 'COC', 'SUPPORT', 'TASK', 'OTHER', 'MEETING', 'ADMIN') AND status in ('PENDING', 'APPROVED', 'REJECTED')")
+@Check(constraints = "work_category in ('FEATURE', 'BUG', 'STORY', 'R&D', 'CRC', 'COC', 'SUPPORT', 'TASK', 'OTHER', 'MEETING', 'ADMIN', 'REVIEW', 'GENERAL', 'BREAK') AND status in ('PENDING', 'APPROVED', 'REJECTED')")
 @Table(name = "timesheet_entries") // uniqueConstraints = @UniqueConstraint(columnNames = {"employee_id","start_time"})
 public class TimesheetEntry {
 
@@ -33,7 +33,7 @@ public class TimesheetEntry {
     private Employee employee;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "task_id",nullable = false)
+    @JoinColumn(name = "task_id")
     private Task task;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -71,4 +71,10 @@ public class TimesheetEntry {
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt; // default now time
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "approved_by")
+    private Employee approvedBy;
+
+    private LocalDateTime approvedAt;
 }

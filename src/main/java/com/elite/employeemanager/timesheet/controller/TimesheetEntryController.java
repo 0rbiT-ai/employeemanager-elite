@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -22,6 +23,7 @@ public class TimesheetEntryController {
     private final TimesheetEntryService timesheetService;
 
     @GetMapping
+    @PreAuthorize("hasAuthority('TIMESHEET_VIEW')")
     public ResponseEntity<List<TimesheetResponse>> getAllTimesheetEntries(
             @RequestParam(required = false) Long employeeId,
             @RequestParam(required = false) LocalDate date,
@@ -30,16 +32,19 @@ public class TimesheetEntryController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('TIMESHEET_CREATE')")
     public ResponseEntity<TimesheetResponse> createTimesheetEntry(@RequestBody TimesheetRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(timesheetService.createEntry(request));
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('TIMESHEET_UPDATE')")
     public ResponseEntity<TimesheetResponse> updateEntryStatus(@PathVariable Long id, @RequestBody TimesheetStatusUpdateRequest request) {
         return ResponseEntity.ok(timesheetService.updateStatus(id, request));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('TIMESHEET_DELETE')")
     public ResponseEntity<String> deleteTimesheetEntry(@PathVariable Long id) {
         timesheetService.deleteEntry(id);
         return ResponseEntity.ok("Timesheet Entry deleted successfully");
