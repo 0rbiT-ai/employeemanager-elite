@@ -84,23 +84,6 @@ public class TimesheetEntryService {
                 .build();
     }
 
-    private boolean isEtaExceeded(Task task,TimesheetRequest request){
-        boolean etaDateExceeded = request.getDate().isAfter(task.getEtaDate());
-
-        boolean etaHourExceeded = false;
-        BigDecimal todayDuration = BigDecimal.valueOf(java.time.Duration.between(request.getStartTime(), request.getEndTime()).toMinutes())
-                .divide(BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP);
-        List<TimesheetEntry> taskEntries = timesheetEntryRepository.findByTask(task);
-        BigDecimal totalHoursSpent = todayDuration;
-        for (TimesheetEntry entry:taskEntries){
-            totalHoursSpent = totalHoursSpent.add(entry.getHoursSpent());
-        }
-        if (totalHoursSpent.compareTo(task.getEtaHours())>0){
-            etaHourExceeded=true;
-        }
-
-        return etaHourExceeded || etaDateExceeded;
-    }
 
     public List<TimesheetResponse> getAllEntries(Long employeeId, LocalDate date, String status) {
         Employee currentEmployee = securityUtils.getCurrentEmployee();
@@ -237,9 +220,6 @@ public class TimesheetEntryService {
         if (!isBreak && task == null && project == null && (request.getBugNumber() == null || request.getBugNumber().isBlank())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Work logs must be linked to at least one reference (task, project, or bug).");
         }
-        if (!isBreak && task!=null && isEtaExceeded(task,request) && (request.getJustification()==null||request.getJustification().isBlank())){
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Eta Exceeded. Please provide Justification");
-        }
 
         TimesheetEntry entry = TimesheetEntry.builder()
                 .employee(employee)
@@ -253,7 +233,7 @@ public class TimesheetEntryService {
                 .hoursSpent(durationHours)
                 .description(request.getDescription())
                 .justification(request.getJustification())
-                .status("PENDING")
+                .status("APPROVED") // always by default for individual entries
                 .createdAt(LocalDateTime.now())
                 .build();
 

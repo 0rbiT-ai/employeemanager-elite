@@ -66,4 +66,12 @@ public class Task extends AuditSoftDeleteEntity {
 
     private String epic;
 
+    @Column(columnDefinition = "TEXT")
+    private String justification;
+
+    private String completionReviewStatus;
+
+    @Column(columnDefinition = "TEXT")
+    private String reviewComment;
+
 }

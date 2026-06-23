@@ -104,4 +104,16 @@ public class TaskController {
     public ResponseEntity<List<TaskTransfer>> getTaskTransferRequestsByTaskId(@PathVariable Long id){
         return new ResponseEntity<>(taskTransferService.getTaskTransferByTaskId(id),HttpStatus.OK);
     }
+
+    @PostMapping("/{id}/submit-review")
+    @PreAuthorize("hasAuthority('TASK_UPDATE')")
+    public ResponseEntity<Task> submitTaskForReview(@PathVariable Long id, @RequestBody com.elite.employeemanager.task.dto.TaskReviewSubmitRequest request) {
+        return ResponseEntity.ok(taskService.submitForReview(id, request));
+    }
+
+    @PostMapping("/{id}/review")
+    @PreAuthorize("hasAuthority('TASK_UPDATE')")
+    public ResponseEntity<Task> reviewTask(@PathVariable Long id, @RequestBody com.elite.employeemanager.task.dto.TaskReviewRequest request) {
+        return ResponseEntity.ok(taskService.reviewTask(id, request));
+    }
 }

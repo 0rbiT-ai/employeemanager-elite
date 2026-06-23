@@ -26,9 +26,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Stream;
+import com.elite.employeemanager.timesheet.repository.TimesheetEntryRepository;
+import com.elite.employeemanager.timesheet.entity.TimesheetEntry;
+import com.elite.employeemanager.task.dto.TaskReviewSubmitRequest;
+import com.elite.employeemanager.task.dto.TaskReviewRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +50,7 @@ public class TaskService {
     private final EtaExtensionRepository etaExtensionRepository;
     private final SecurityUtils securityUtils;
     private final TaskUtility taskUtility;
+    private final TimesheetEntryRepository timesheetEntryRepository;
 
     public Task createTask(Task task){
 
@@ -517,6 +524,113 @@ public class TaskService {
 
     public List<Task> getBacklogTasks(){
         return taskRepository.findByAssignedToIsNull();
+    }
+
+    @Transactional
+    public Task submitForReview(Long id, TaskReviewSubmitRequest request) {
+        Task task = getTaskById(id);
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+
+        if (task.getAssignedTo() == null || !task.getAssignedTo().getId().equals(currentEmployee.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only submit tasks assigned to you");
+        }
+
+        List<TimesheetEntry> logs = timesheetEntryRepository.findByTask(task);
+        BigDecimal totalHoursLogged = logs.stream()
+                .map(TimesheetEntry::getHoursSpent)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+        boolean isHoursBreached = totalHoursLogged.compareTo(task.getEtaHours()) > 0;
+        boolean isDateBreached = LocalDate.now().isAfter(task.getEtaDate());
+
+        if (isHoursBreached || isDateBreached) {
+            if (request.getJustification() == null || request.getJustification().isBlank()) {
+                throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Task has exceeded ETA. A justification is required to submit for review."
+                );
+            }
+            task.setJustification(request.getJustification());
+        }
+
+        String oldStatus = task.getStatus();
+        task.setStatus("PENDING_REVIEW");
+
+        taskStatusHistoryService.createTaskStatusHistory(
+                task,
+                oldStatus,
+                "PENDING_REVIEW",
+                securityUtils.getCurrentUser(),
+                "Submitted for completion review"
+        );
+
+        return taskRepository.save(task);
+    }
+
+    @Transactional
+    public Task reviewTask(Long id, TaskReviewRequest request) {
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        boolean isAdmin = currentEmployee.getRoles().contains("ADMIN");
+        boolean isLead = currentEmployee.getRoles().contains("TEAM_LEAD") || currentEmployee.getRoles().contains("SUB_LEAD");
+
+        if (!isAdmin && !isLead) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User is not allowed to review this task");
+        }
+
+        Task task = getTaskById(id);
+
+        if (!isAdmin) {
+            List<Team> managedTeams = new java.util.ArrayList<>();
+            if (currentEmployee.getRoles().contains("TEAM_LEAD")) {
+                managedTeams.addAll(teamRepository.findByLead(currentEmployee));
+            }
+            if (currentEmployee.getRoles().contains("SUB_LEAD")) {
+                managedTeams.addAll(teamRepository.findBySubLead(currentEmployee));
+            }
+
+            boolean isMemberOfManagedTeam = false;
+            if (task.getAssignedTo() != null) {
+                for (Team team : managedTeams) {
+                    if (teamEmployeeRepository.findByTeamAndEmployee(team, task.getAssignedTo()).isPresent()) {
+                        isMemberOfManagedTeam = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!isMemberOfManagedTeam) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not authorized to review tasks for this employee");
+            }
+        }
+
+        String targetStatus = request.getStatus().toUpperCase();
+        if (!"APPROVED".equals(targetStatus) && !"REJECTED".equals(targetStatus)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Review status must be either APPROVED or REJECTED");
+        }
+
+        String oldStatus = task.getStatus();
+        String newStatus;
+
+        if ("APPROVED".equals(targetStatus)) {
+            newStatus = "COMPLETED";
+            task.setStatus(newStatus);
+            task.setCompletionReviewStatus("APPROVED");
+        } else {
+            newStatus = "IN_PROGRESS";
+            task.setStatus(newStatus);
+            task.setCompletionReviewStatus("REJECTED");
+        }
+
+        task.setReviewComment(request.getComment());
+
+        taskStatusHistoryService.createTaskStatusHistory(
+                task, 
+                oldStatus, 
+                newStatus, 
+                securityUtils.getCurrentUser(), 
+                "Task completion review: " + targetStatus + ". Comment: " + request.getComment()
+        );
+
+        return taskRepository.save(task);
     }
 
 }
