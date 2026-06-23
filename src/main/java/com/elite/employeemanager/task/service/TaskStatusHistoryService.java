@@ -19,7 +19,6 @@ import java.util.List;
 public class TaskStatusHistoryService {
     private final TaskStatusHistoryRepository taskStatusHistoryRepository;
     private final TaskRepository taskRepository;
-    private final TaskService taskService;
 
     public TaskStatusHistory createTaskStatusHistory(Task task,
                                                      String oldStatus,
@@ -38,7 +37,8 @@ public class TaskStatusHistoryService {
     }
 
     public List<TaskStatusHistory> getTaskStatusHistoryByTaskId(Long taskId){
-        Task task = taskService.getTaskById(taskId);
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Task Not Found"));
         return taskStatusHistoryRepository.findByTask(task);
     }
 }

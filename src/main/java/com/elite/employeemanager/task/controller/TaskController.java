@@ -71,6 +71,7 @@ public class TaskController {
     @GetMapping("/{id}/history")
     @PreAuthorize("hasAuthority('TASK_VIEW')")
     public ResponseEntity<List<TaskStatusHistory>> getTaskStatusHistoryByTaskId(@PathVariable Long id) {
+        taskService.getTaskById(id); //task visibility check
         return new ResponseEntity<>(taskStatusHistoryService.getTaskStatusHistoryByTaskId(id), HttpStatus.OK);
     }
 
