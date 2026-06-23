@@ -8,6 +8,7 @@ import com.elite.employeemanager.project.repository.ProjectEmployeeRepository;
 import com.elite.employeemanager.project.repository.ProjectRepository;
 import com.elite.employeemanager.task.entity.Task;
 import com.elite.employeemanager.task.repository.TaskRepository;
+import com.elite.employeemanager.team.entity.TeamEmployee;
 import com.elite.employeemanager.timesheet.dto.*;
 import com.elite.employeemanager.timesheet.entity.TimesheetEntry;
 import com.elite.employeemanager.timesheet.repository.TimesheetEntryRepository;
@@ -21,7 +22,10 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import com.elite.employeemanager.team.repository.TeamRepository;
 import com.elite.employeemanager.team.repository.TeamEmployeeRepository;
@@ -80,11 +84,76 @@ public class TimesheetEntryService {
                 .build();
     }
 
+    private boolean isEtaExceeded(Task task,TimesheetRequest request){
+        boolean etaDateExceeded = request.getDate().isAfter(task.getEtaDate());
+
+        boolean etaHourExceeded = false;
+        BigDecimal todayDuration = BigDecimal.valueOf(java.time.Duration.between(request.getStartTime(), request.getEndTime()).toMinutes())
+                .divide(BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP);
+        List<TimesheetEntry> taskEntries = timesheetEntryRepository.findByTask(task);
+        BigDecimal totalHoursSpent = todayDuration;
+        for (TimesheetEntry entry:taskEntries){
+            totalHoursSpent = totalHoursSpent.add(entry.getHoursSpent());
+        }
+        if (totalHoursSpent.compareTo(task.getEtaHours())>0){
+            etaHourExceeded=true;
+        }
+
+        return etaHourExceeded || etaDateExceeded;
+    }
+
     public List<TimesheetResponse> getAllEntries(Long employeeId, LocalDate date, String status) {
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        boolean isAdmin = currentEmployee.getRoles().contains("ADMIN");
+        boolean isLead = currentEmployee.getRoles().contains("TEAM_LEAD") ||
+                currentEmployee.getRoles().contains("SUB_LEAD");
+
+        Long targetEmployeeId = employeeId;
         Specification<TimesheetEntry> spec = Specification.unrestricted();
-        if (employeeId != null) {
+
+        if (!isAdmin) {
+            if (isLead) {
+                List<Team> managedTeams = new ArrayList<>();
+                if (currentEmployee.getRoles().contains("TEAM_LEAD")) {
+                    managedTeams.addAll(teamRepository.findByLead(currentEmployee));
+                }
+                if (currentEmployee.getRoles().contains("SUB_LEAD")) {
+                    managedTeams.addAll(teamRepository.findBySubLead(currentEmployee));
+                }
+
+                Set<Long> allowedEmployeeIds = new HashSet<>();
+                allowedEmployeeIds.add(currentEmployee.getId());
+                for (Team team : managedTeams) {
+                    List<TeamEmployee> members = teamEmployeeRepository.findByTeam(team);
+                    for (TeamEmployee member : members) {
+                        allowedEmployeeIds.add(member.getEmployee().getId());
+                    }
+                }
+
+                if (targetEmployeeId != null) {
+                    if (!allowedEmployeeIds.contains(targetEmployeeId)) {
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not authorized to view timesheets for this employee");
+                    }
+                } else {
+                    spec = spec.and((root, query, cb) ->
+                            root.get("employee").get("id").in(allowedEmployeeIds)
+                    );
+                }
+            } else {
+                if (targetEmployeeId != null) {
+                    if (!targetEmployeeId.equals(currentEmployee.getId())) {
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not authorized to view timesheets for other employees");
+                    }
+                } else {
+                    targetEmployeeId = currentEmployee.getId();
+                }
+            }
+        }
+
+        final Long finalTargetEmployeeId = targetEmployeeId;
+        if (finalTargetEmployeeId != null) {
             spec = spec.and((root, query, cb) ->
-                    cb.equal(root.get("employee").get("id"), employeeId)
+                    cb.equal(root.get("employee").get("id"), finalTargetEmployeeId)
             );
         }
         if (date != null) {
@@ -168,7 +237,9 @@ public class TimesheetEntryService {
         if (!isBreak && task == null && project == null && (request.getBugNumber() == null || request.getBugNumber().isBlank())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Work logs must be linked to at least one reference (task, project, or bug).");
         }
-
+        if (!isBreak && task!=null && isEtaExceeded(task,request) && (request.getJustification()==null||request.getJustification().isBlank())){
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Eta Exceeded. Please provide Justification");
+        }
 
         TimesheetEntry entry = TimesheetEntry.builder()
                 .employee(employee)
@@ -208,7 +279,7 @@ public class TimesheetEntryService {
         }
 
         if (!isAdmin) {
-            List<Team> managedTeams = new java.util.ArrayList<>();
+            List<Team> managedTeams = new ArrayList<>();
             if (currentEmployee.getRoles().contains("TEAM_LEAD")) {
                 managedTeams.addAll(teamRepository.findByLead(currentEmployee));
             }

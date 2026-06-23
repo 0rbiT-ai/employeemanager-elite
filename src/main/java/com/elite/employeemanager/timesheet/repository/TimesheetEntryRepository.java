@@ -1,5 +1,6 @@
 package com.elite.employeemanager.timesheet.repository;
 
+import com.elite.employeemanager.task.entity.Task;
 import com.elite.employeemanager.timesheet.entity.TimesheetEntry;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -14,4 +15,5 @@ public interface TimesheetEntryRepository extends
 
     public List<TimesheetEntry> findByEmployeeId(Long employeeId);
 
+    List<TimesheetEntry> findByTask(Task task);
 }
