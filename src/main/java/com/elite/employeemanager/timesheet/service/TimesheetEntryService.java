@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import com.elite.employeemanager.team.repository.TeamRepository;
 import com.elite.employeemanager.team.repository.TeamEmployeeRepository;
 import com.elite.employeemanager.team.entity.Team;
+import com.elite.employeemanager.task.service.TaskStatusHistoryService;
 
 @Service
 @RequiredArgsConstructor
@@ -43,6 +44,7 @@ public class TimesheetEntryService {
     private final SecurityUtils securityUtils;
     private final TeamRepository teamRepository;
     private final TeamEmployeeRepository teamEmployeeRepository;
+    private final TaskStatusHistoryService taskStatusHistoryService;
 
     private void validateMembership(Project project, Task task, Employee employee) {
         if (project != null) {
@@ -237,7 +239,34 @@ public class TimesheetEntryService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        return mapToResponse(timesheetEntryRepository.save(entry));
+        TimesheetEntry savedEntry = timesheetEntryRepository.save(entry);
+
+        // Auto-flag OVER_ETA if task is OPEN or IN_PROGRESS and has breached ETA
+        if (task != null && ("OPEN".equals(task.getStatus()) || "IN_PROGRESS".equals(task.getStatus()))) {
+            List<TimesheetEntry> logs = timesheetEntryRepository.findByTask(task);
+            BigDecimal totalHoursLogged = logs.stream()
+                    .map(TimesheetEntry::getHoursSpent)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            boolean isHoursBreached = totalHoursLogged.compareTo(task.getEtaHours()) > 0;
+            boolean isDateBreached = request.getDate().isAfter(task.getEtaDate());
+
+            if (isHoursBreached || isDateBreached) {
+                String oldStatus = task.getStatus();
+                task.setStatus("OVER_ETA");
+                taskRepository.save(task);
+
+                taskStatusHistoryService.createTaskStatusHistory(
+                        task,
+                        oldStatus,
+                        "OVER_ETA",
+                        securityUtils.getCurrentUser(),
+                        "Task automatically marked OVER_ETA due to hours/date breach"
+                );
+            }
+        }
+
+        return mapToResponse(savedEntry);
     }
 
     @Transactional

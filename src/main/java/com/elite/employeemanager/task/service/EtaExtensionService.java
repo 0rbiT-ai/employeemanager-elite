@@ -119,14 +119,21 @@ public class EtaExtensionService {
         request.setReviewedAt(LocalDateTime.now());
         request.setReviewedBy(securityUtils.getCurrentUser());
 
+        String oldStatus = task.getStatus();
+        String newStatus = oldStatus;
+        if ("OVER_ETA".equals(oldStatus) || "IN_PROGRESS".equals(oldStatus) || "OPEN".equals(oldStatus)) {
+            newStatus = "ETA_EXTENDED";
+            task.setStatus(newStatus);
+        }
+
         task.setEtaDate(request.getNewEtaDate());
         task.setExtendedEtaDate(request.getNewEtaDate());
         taskRepository.save(task);
 
         taskStatusHistoryService.createTaskStatusHistory(
                 task,
-                task.getStatus(),
-                task.getStatus(),
+                oldStatus,
+                newStatus,
                 securityUtils.getCurrentUser(),
                 "ETA extended from "
                         + request.getOldEtaDate()
