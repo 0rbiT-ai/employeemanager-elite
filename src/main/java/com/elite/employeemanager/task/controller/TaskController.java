@@ -116,4 +116,16 @@ public class TaskController {
     public ResponseEntity<Task> reviewTask(@PathVariable Long id, @RequestBody com.elite.employeemanager.task.dto.TaskReviewRequest request) {
         return ResponseEntity.ok(taskService.reviewTask(id, request));
     }
+
+    @PostMapping("/{id}/unsubmit-review")
+    @PreAuthorize("hasAuthority('TASK_UPDATE')")
+    public ResponseEntity<Task> unsubmitTaskReview(@PathVariable Long id) {
+        return ResponseEntity.ok(taskService.unsubmitReview(id));
+    }
+
+    @PostMapping("/{id}/undo-review")
+    @PreAuthorize("hasAuthority('TASK_UPDATE')")
+    public ResponseEntity<Task> undoTaskReview(@PathVariable Long id) {
+        return ResponseEntity.ok(taskService.undoReview(id));
+    }
 }

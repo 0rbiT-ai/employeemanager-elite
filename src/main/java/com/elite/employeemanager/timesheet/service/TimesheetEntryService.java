@@ -31,6 +31,7 @@ import com.elite.employeemanager.team.repository.TeamRepository;
 import com.elite.employeemanager.team.repository.TeamEmployeeRepository;
 import com.elite.employeemanager.team.entity.Team;
 import com.elite.employeemanager.task.service.TaskStatusHistoryService;
+import com.elite.employeemanager.task.service.TaskService;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +46,7 @@ public class TimesheetEntryService {
     private final TeamRepository teamRepository;
     private final TeamEmployeeRepository teamEmployeeRepository;
     private final TaskStatusHistoryService taskStatusHistoryService;
+    private final TaskService taskService;
 
     private void validateMembership(Project project, Task task, Employee employee) {
         if (project != null) {
@@ -255,42 +257,7 @@ public class TimesheetEntryService {
 
         TimesheetEntry savedEntry = timesheetEntryRepository.save(entry);
 
-        if (task != null && "OPEN".equals(task.getStatus())) {
-            String oldStatus = task.getStatus();
-            task.setStatus("IN_PROGRESS");
-            taskRepository.save(task);
-            taskStatusHistoryService.createTaskStatusHistory(
-                    task,
-                    oldStatus,
-                    "IN_PROGRESS",
-                    securityUtils.getCurrentUser(),
-                    "Task automatically marked IN_PROGRESS upon time logging"
-            );
-        }
-
-        if (task != null && ("OPEN".equals(task.getStatus()) || "IN_PROGRESS".equals(task.getStatus()) || "TRANSFERRED".equals(task.getStatus()) || "ETA_EXTENDED".equals(task.getStatus()))) {
-            List<TimesheetEntry> logs = timesheetEntryRepository.findByTask(task);
-            BigDecimal totalHoursLogged = logs.stream()
-                    .map(TimesheetEntry::getHoursSpent)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            boolean isHoursBreached = totalHoursLogged.compareTo(task.getEtaHours()) > 0;
-            boolean isDateBreached = request.getDate().isAfter(task.getEtaDate());
-
-            if (isHoursBreached || isDateBreached) {
-                String oldStatus = task.getStatus();
-                task.setStatus("OVER_ETA");
-                taskRepository.save(task);
-
-                taskStatusHistoryService.createTaskStatusHistory(
-                        task,
-                        oldStatus,
-                        "OVER_ETA",
-                        securityUtils.getCurrentUser(),
-                        "Task automatically marked OVER_ETA due to hours/date breach"
-                );
-            }
-        }
+        taskService.reevaluateTaskStatus(task);
 
         return mapToResponse(savedEntry);
     }
@@ -344,6 +311,122 @@ public class TimesheetEntryService {
     }
 
     @Transactional
+    public TimesheetResponse patchUpdateEntry(Long id, TimesheetRequest request) {
+        TimesheetEntry entry = timesheetEntryRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Timesheet entry not found"));
+
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        boolean isAdmin = currentEmployee.getRoles().contains("ADMIN");
+        if (!isAdmin && !entry.getEmployee().getId().equals(currentEmployee.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not authorized to update other employees' time logs");
+        }
+
+        LocalDate dateToUse = request.getDate() != null ? request.getDate() : entry.getWorkDate();
+        LocalDateTime startToUse = request.getStartTime() != null ? request.getStartTime() : entry.getStartTime();
+        LocalDateTime endToUse = request.getEndTime() != null ? request.getEndTime() : entry.getEndTime();
+
+        if (!endToUse.isAfter(startToUse)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Entry end time cannot be before start time");
+        }
+
+        BigDecimal calculatedDuration = BigDecimal.valueOf(java.time.Duration.between(startToUse, endToUse).toMinutes())
+                .divide(BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP);
+
+        BigDecimal durationHours = request.getDurationHours();
+        if (durationHours != null) {
+            if (durationHours.compareTo(calculatedDuration) != 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Logged duration hours (" + durationHours + ") does not match start and end time difference (" + calculatedDuration + ")");
+            }
+        } else {
+            durationHours = calculatedDuration;
+        }
+
+        Task oldTask = entry.getTask();
+        Task newTask = oldTask;
+        Project newProject = entry.getProject();
+
+        if (request.getTask() != null) {
+            if (request.getTask().getId() != null) {
+                newTask = taskRepository.findById(request.getTask().getId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
+                newProject = newTask.getProject();
+            } else {
+                newTask = null;
+            }
+        } else if (request.getProject() != null) {
+            if (request.getProject().getId() != null) {
+                newProject = projectRepository.findById(request.getProject().getId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
+                newTask = null;
+            } else {
+                newProject = null;
+                newTask = null;
+            }
+        }
+
+        validateMembership(newProject, newTask, entry.getEmployee());
+
+        if (newTask != null && newTask.getStatus() != null) {
+            if ("PENDING_REVIEW".equalsIgnoreCase(newTask.getStatus())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cant link timesheet entry to this task when already submitted for review");
+            }
+            if ("COMPLETED".equalsIgnoreCase(newTask.getStatus())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cant link timesheet entry to a completed task");
+            }
+        }
+
+        if (request.getWorkCategory() != null && !request.getWorkCategory().isBlank()) {
+            entry.setWorkCategory(request.getWorkCategory().toUpperCase());
+        }
+
+        boolean isBreak = "BREAK".equalsIgnoreCase(entry.getWorkCategory());
+        String bugNumberToUse = request.getBugNumber() != null ? request.getBugNumber() : entry.getBugNumber();
+
+        if (!isBreak && newTask == null && newProject == null && (bugNumberToUse == null || bugNumberToUse.isBlank())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Work logs must be linked to at least one reference (task, project, or bug).");
+        }
+
+        List<TimesheetEntry> dateEntries = timesheetEntryRepository.findByEmployeeAndWorkDate(entry.getEmployee(), dateToUse);
+        for (TimesheetEntry otherEntry : dateEntries) {
+            if (otherEntry.getId().equals(entry.getId())) {
+                continue;
+            }
+            if (otherEntry.getStartTime().isBefore(endToUse) && startToUse.isBefore(otherEntry.getEndTime())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Entries cannot overlap");
+            }
+        }
+
+        entry.setWorkDate(dateToUse);
+        entry.setStartTime(startToUse);
+        entry.setEndTime(endToUse);
+        entry.setHoursSpent(durationHours);
+
+        if (request.getBugNumber() != null) {
+            entry.setBugNumber(request.getBugNumber().isBlank() ? null : request.getBugNumber());
+        }
+        if (request.getDescription() != null && !request.getDescription().isBlank()) {
+            entry.setDescription(request.getDescription());
+        }
+        if (request.getJustification() != null) {
+            entry.setJustification(request.getJustification());
+        }
+
+        entry.setTask(newTask);
+        entry.setProject(newProject);
+
+        TimesheetEntry saved = timesheetEntryRepository.save(entry);
+
+        if (oldTask != null) {
+            taskService.reevaluateTaskStatus(oldTask);
+        }
+        if (newTask != null && (oldTask == null || !newTask.getId().equals(oldTask.getId()))) {
+            taskService.reevaluateTaskStatus(newTask);
+        }
+
+        return mapToResponse(saved);
+    }
+
+    @Transactional
     public void deleteEntry(Long id) {
         Employee currentEmployee = securityUtils.getCurrentEmployee();
         TimesheetEntry entry = timesheetEntryRepository.findById(id)
@@ -355,5 +438,9 @@ public class TimesheetEntryService {
         }
 
         timesheetEntryRepository.delete(entry);
+
+        if (entry.getTask() != null) {
+            taskService.reevaluateTaskStatus(entry.getTask());
+        }
     }
 }

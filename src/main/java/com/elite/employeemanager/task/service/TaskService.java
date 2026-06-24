@@ -660,4 +660,150 @@ public class TaskService {
         return previousStatus;
     }
 
+    @Transactional
+    public void reevaluateTaskStatus(Task task) {
+        if (task == null) return;
+        String currentStatus = task.getStatus();
+        if ("OPEN".equals(currentStatus) || "IN_PROGRESS".equals(currentStatus) || "OVER_ETA".equals(currentStatus) || "TRANSFERRED".equals(currentStatus) || "ETA_EXTENDED".equals(currentStatus)) {
+            List<TimesheetEntry> logs = timesheetEntryRepository.findByTask(task);
+            BigDecimal totalHoursLogged = logs.stream()
+                    .map(TimesheetEntry::getHoursSpent)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            boolean isHoursBreached = totalHoursLogged.compareTo(task.getEtaHours()) > 0;
+            boolean isDateBreached = LocalDate.now().isAfter(task.getEtaDate());
+
+            if (isHoursBreached || isDateBreached) {
+                if (!"OVER_ETA".equals(currentStatus)) {
+                    task.setStatus("OVER_ETA");
+                    taskRepository.save(task);
+                    taskStatusHistoryService.createTaskStatusHistory(
+                            task,
+                            currentStatus,
+                            "OVER_ETA",
+                            securityUtils.getCurrentUser(),
+                            "Task automatically marked OVER_ETA due to hours/date breach"
+                    );
+                }
+            } else {
+                // Not breached
+                if ("OVER_ETA".equals(currentStatus)) {
+                    task.setStatus("IN_PROGRESS");
+                    taskRepository.save(task);
+                    taskStatusHistoryService.createTaskStatusHistory(
+                            task,
+                            currentStatus,
+                            "IN_PROGRESS",
+                            securityUtils.getCurrentUser(),
+                            "Task status reverted to IN_PROGRESS as it is no longer breaching ETA"
+                    );
+                } else if ("OPEN".equals(currentStatus) && totalHoursLogged.compareTo(BigDecimal.ZERO) > 0) {
+                    task.setStatus("IN_PROGRESS");
+                    taskRepository.save(task);
+                    taskStatusHistoryService.createTaskStatusHistory(
+                            task,
+                            currentStatus,
+                            "IN_PROGRESS",
+                            securityUtils.getCurrentUser(),
+                            "Task automatically marked IN_PROGRESS upon time logging"
+                    );
+                }
+            }
+        }
+    }
+
+    @Transactional
+    public Task unsubmitReview(Long id) {
+        Task task = getTaskById(id);
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+
+        if (!"PENDING_REVIEW".equals(task.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task is not submitted for review");
+        }
+
+        if (task.getAssignedTo() == null || !task.getAssignedTo().getId().equals(currentEmployee.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only unsubmit tasks assigned to you");
+        }
+
+        List<com.elite.employeemanager.task.entity.TaskStatusHistory> historyList = taskStatusHistoryService.getTaskStatusHistoryByTaskId(task.getId());
+        String previousStatus = "IN_PROGRESS";
+        for (int i = historyList.size() - 1; i >= 0; i--) {
+            com.elite.employeemanager.task.entity.TaskStatusHistory h = historyList.get(i);
+            if ("PENDING_REVIEW".equals(h.getNewStatus())) {
+                previousStatus = h.getOldStatus();
+                break;
+            }
+        }
+
+        String finalStatus = determineStatusAfterUndo(task, previousStatus);
+        task.setStatus(finalStatus);
+        task.setJustification(null); // Clear the justification on unsubmit
+
+        taskStatusHistoryService.createTaskStatusHistory(
+                task,
+                "PENDING_REVIEW",
+                finalStatus,
+                securityUtils.getCurrentUser(),
+                "Unsubmitted task from completion review"
+        );
+
+        return taskRepository.save(task);
+    }
+
+    @Transactional
+    public Task undoReview(Long id) {
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
+        boolean isAdmin = currentEmployee.getRoles().contains("ADMIN");
+        boolean isLead = currentEmployee.getRoles().contains("TEAM_LEAD") || currentEmployee.getRoles().contains("SUB_LEAD");
+
+        if (!isAdmin && !isLead) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current User is not allowed to undo review for this task");
+        }
+
+        Task task = getTaskById(id);
+
+        if (task.getCompletionReviewStatus() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No completion review decision has been made for this task");
+        }
+
+        if (!isAdmin) {
+            List<Team> managedTeams = new java.util.ArrayList<>();
+            if (currentEmployee.getRoles().contains("TEAM_LEAD")) {
+                managedTeams.addAll(teamRepository.findByLead(currentEmployee));
+            }
+            if (currentEmployee.getRoles().contains("SUB_LEAD")) {
+                managedTeams.addAll(teamRepository.findBySubLead(currentEmployee));
+            }
+
+            boolean isMemberOfManagedTeam = false;
+            if (task.getAssignedTo() != null) {
+                for (Team team : managedTeams) {
+                    if (teamEmployeeRepository.findByTeamAndEmployee(team, task.getAssignedTo()).isPresent()) {
+                        isMemberOfManagedTeam = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!isMemberOfManagedTeam) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not authorized to undo review for this employee");
+            }
+        }
+
+        String oldStatus = task.getStatus();
+        task.setStatus("PENDING_REVIEW");
+        task.setCompletionReviewStatus(null);
+        task.setReviewComment(null);
+
+        taskStatusHistoryService.createTaskStatusHistory(
+                task,
+                oldStatus,
+                "PENDING_REVIEW",
+                securityUtils.getCurrentUser(),
+                "Undid task completion review decision"
+        );
+
+        return taskRepository.save(task);
+    }
+
 }

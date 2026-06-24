@@ -49,4 +49,10 @@ public class TimesheetEntryController {
         timesheetService.deleteEntry(id);
         return ResponseEntity.ok("Timesheet Entry deleted successfully");
     }
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasAuthority('TIMESHEET_UPDATE')")
+    public ResponseEntity<TimesheetResponse> patchTimesheetEntry(@PathVariable Long id, @RequestBody TimesheetRequest request) {
+        return ResponseEntity.ok(timesheetService.patchUpdateEntry(id, request));
+    }
 }
