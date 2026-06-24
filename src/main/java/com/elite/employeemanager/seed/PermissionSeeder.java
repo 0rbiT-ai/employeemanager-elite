@@ -54,6 +54,10 @@ public class PermissionSeeder implements CommandLineRunner {
         Permission timesheetUpdate = seedPermission("TIMESHEET_UPDATE", "Update timesheet entries");
         Permission timesheetDelete = seedPermission("TIMESHEET_DELETE", "Delete timesheet entries");
 
+        Permission attachmentView = seedPermission("ATTACHMENT_VIEW", "View attachments");
+        Permission attachmentUpload = seedPermission("ATTACHMENT_UPLOAD", "Upload attachments");
+        Permission attachmentDelete = seedPermission("ATTACHMENT_DELETE", "Delete attachments");
+
         // 2. Fetch Roles
         Role admin = roleRepository.findByRoleCode("ADMIN").orElseThrow();
         Role teamLead = roleRepository.findByRoleCode("TEAM_LEAD").orElseThrow();
@@ -92,6 +96,10 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(admin, timesheetUpdate);
         mapPermissionToRole(admin, timesheetDelete);
 
+        mapPermissionToRole(admin, attachmentView);
+        mapPermissionToRole(admin, attachmentUpload);
+        mapPermissionToRole(admin, attachmentDelete);
+
 
 // ==================== TEAM LEAD ====================
 
@@ -116,6 +124,10 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(teamLead, timesheetCreate);
         mapPermissionToRole(teamLead, timesheetUpdate);
         mapPermissionToRole(teamLead, timesheetDelete);
+
+        mapPermissionToRole(teamLead, attachmentView);
+        mapPermissionToRole(teamLead, attachmentUpload);
+        mapPermissionToRole(teamLead, attachmentDelete);
 
 
 // ==================== SUB LEAD ====================
@@ -142,6 +154,10 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(subLead, timesheetUpdate);
         mapPermissionToRole(subLead, timesheetDelete);
 
+        mapPermissionToRole(subLead, attachmentView);
+        mapPermissionToRole(subLead, attachmentUpload);
+        mapPermissionToRole(subLead, attachmentDelete);
+
 
 // ==================== EMPLOYEE ====================
 
@@ -156,6 +172,10 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(employee, timesheetView);
         mapPermissionToRole(employee, timesheetCreate);
         mapPermissionToRole(employee, timesheetDelete);
+
+        mapPermissionToRole(employee, attachmentView);
+        mapPermissionToRole(employee, attachmentUpload);
+        mapPermissionToRole(employee, attachmentDelete);
     }
 
     private Permission seedPermission(String name, String description) {
