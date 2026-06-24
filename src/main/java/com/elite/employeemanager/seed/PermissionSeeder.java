@@ -58,6 +58,13 @@ public class PermissionSeeder implements CommandLineRunner {
         Permission attachmentUpload = seedPermission("ATTACHMENT_UPLOAD", "Upload attachments");
         Permission attachmentDelete = seedPermission("ATTACHMENT_DELETE", "Delete attachments");
 
+        Permission announcementView = seedPermission("ANNOUNCEMENT_VIEW", "View announcements");
+        Permission announcementCreate = seedPermission("ANNOUNCEMENT_CREATE", "Create announcements");
+        Permission announcementUpdate = seedPermission("ANNOUNCEMENT_UPDATE", "Update announcements");
+        Permission announcementDelete = seedPermission("ANNOUNCEMENT_DELETE", "Delete announcements");
+
+        Permission teamsPost = seedPermission("TEAMS_POST", "Post messages to Microsoft Teams");
+
         // 2. Fetch Roles
         Role admin = roleRepository.findByRoleCode("ADMIN").orElseThrow();
         Role teamLead = roleRepository.findByRoleCode("TEAM_LEAD").orElseThrow();
@@ -100,6 +107,11 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(admin, attachmentUpload);
         mapPermissionToRole(admin, attachmentDelete);
 
+        mapPermissionToRole(admin, announcementView);
+        mapPermissionToRole(admin, announcementCreate);
+        mapPermissionToRole(admin, announcementUpdate);
+        mapPermissionToRole(admin, announcementDelete);
+        mapPermissionToRole(admin, teamsPost);
 
 // ==================== TEAM LEAD ====================
 
@@ -129,6 +141,11 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(teamLead, attachmentUpload);
         mapPermissionToRole(teamLead, attachmentDelete);
 
+        mapPermissionToRole(teamLead, announcementView);
+        mapPermissionToRole(teamLead, announcementCreate);
+        mapPermissionToRole(teamLead, announcementUpdate);
+        mapPermissionToRole(teamLead, announcementDelete);
+        mapPermissionToRole(teamLead, teamsPost);
 
 // ==================== SUB LEAD ====================
 
@@ -158,6 +175,12 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(subLead, attachmentUpload);
         mapPermissionToRole(subLead, attachmentDelete);
 
+        mapPermissionToRole(subLead, announcementView);
+        mapPermissionToRole(subLead, announcementCreate);
+        mapPermissionToRole(subLead, announcementUpdate);
+        mapPermissionToRole(subLead, announcementDelete);
+        mapPermissionToRole(subLead, teamsPost);
+
 
 // ==================== EMPLOYEE ====================
 
@@ -176,6 +199,9 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(employee, attachmentView);
         mapPermissionToRole(employee, attachmentUpload);
         mapPermissionToRole(employee, attachmentDelete);
+
+        mapPermissionToRole(employee, announcementView);
+        mapPermissionToRole(employee, teamsPost);
     }
 
     private Permission seedPermission(String name, String description) {
