@@ -1054,11 +1054,55 @@ Access to protected endpoints is governed by authorities compiled from user role
 
 ---
 
-## 15. Membership Behavior & Access Rules Matrix
+## 15. Attachment Management Module
+**Base Path:** `/api/v1/attachments` (Requires HTTPOnly cookies)
+
+### 15.1. Upload Attachment
+*   **HTTP Method:** `POST`
+*   **Path:** `/`
+*   **Content-Type:** `multipart/form-data`
+*   **Form Param:** `file` — the file to upload (max 50 MB)
+*   **Required Permission:** `ATTACHMENT_UPLOAD`
+*   **Success Response (201 Created):** Returns the saved `Attachment` object (id, fileName, filePath, fileSizeBytes, uploadedBy, uploadedAt).
+
+### 15.2. Get All Attachments
+*   **HTTP Method:** `GET`
+*   **Path:** `/`
+*   **Required Permission:** `ATTACHMENT_VIEW`
+*   **Success Response (200 OK):** Returns a list of all `Attachment` objects.
+
+### 15.3. Get Attachment Metadata By ID
+*   **HTTP Method:** `GET`
+*   **Path:** `/{id}`
+*   **Required Permission:** `ATTACHMENT_VIEW`
+*   **Success Response (200 OK):** Returns the `Attachment` metadata object.
+*   **Error Response (404 Not Found):** `"Attachment Not Found"`
+
+### 15.4. Download Attachment
+*   **HTTP Method:** `GET`
+*   **Path:** `/{id}/download`
+*   **Required Permission:** `ATTACHMENT_VIEW`
+*   **Success Response (200 OK):** Streams the file content from S3 with:
+    *   `Content-Disposition: attachment; filename="<originalFileName>"`
+    *   `Content-Type` set to the file's MIME type.
+    *   `Content-Length` set from the S3 object metadata.
+*   **Error Response (404 Not Found):** File not found in S3 or DB.
+
+### 15.5. Delete Attachment
+*   **HTTP Method:** `DELETE`
+*   **Path:** `/{id}`
+*   **Required Permission:** `ATTACHMENT_DELETE`
+*   **Success Response (200 OK):** `"Attachment deleted successfully"`
+*   **Error Response (403 Forbidden):** If the caller is not the uploader, an admin, or the uploader's team lead/sub-lead.
+*   **Notes:** Deletes from both S3 storage and the database atomically.
+
+---
+
+## 16. Membership Behavior & Access Rules Matrix
 
 The following tables describe the membership behavior and cross-entity authorization checks (managed dynamically in the service layer) for Teams, Projects, Dynamic Role Assignment, and Tasks:
 
-### 15.1. Teams Module Behavior
+### 16.1. Teams Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Team** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | |
@@ -1073,7 +1117,7 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **View Another Employee's Teams** | Allowed | Blocked (403) | Blocked (403) | Blocked (403) | |
 | **View Own Teams** | Allowed | Allowed | Allowed | Allowed | |
 
-### 15.2. Projects & Project Management Behavior
+### 16.2. Projects & Project Management Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Project** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | |
@@ -1087,14 +1131,14 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Add Project Members** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
 | **Remove Project Members** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
 
-### 15.3. Dynamic Role Assignment
+### 16.3. Dynamic Role Assignment
 *   **Employee becomes Team Lead of an ACTIVE team**: Gets `TEAM_LEAD` role.
 *   **Employee becomes Sub Lead of an ACTIVE team**: Gets `SUB_LEAD` role.
 *   **Employee no longer leads any ACTIVE team**: `TEAM_LEAD` role removed.
 *   **Employee no longer subleads any ACTIVE team**: `SUB_LEAD` role removed.
 *   **Employee is only a regular team member**: `EMPLOYEE` role only.
 
-### 15.4. Tasks Module Behavior
+### 16.4. Tasks Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Task** | Any Project | Visible Projects | Visible Projects | Blocked (403) | Requires project access |
@@ -1107,14 +1151,14 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **View Tasks By Project ID** | Any Project | Visible Projects | Visible Projects | Only own tasks within project | |
 | **View Backlog Tasks** | All Backlog Tasks | All Backlog Tasks | All Backlog Tasks | All Backlog Tasks | Currently unsecured in code |
 
-### 15.5. Task Comments Module Behavior
+### 16.5. Task Comments Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Add Comment** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
 | **Get Comments** | Allowed (all tasks) | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
 | **Delete Comment** | Allowed | Allowed only if own comment | Allowed only if own comment | Allowed only if own comment | Only Admin or comment Author can delete |
 
-### 15.6. Task Tags & Tag Mapping Module Behavior
+### 16.6. Task Tags & Tag Mapping Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Task Tag** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | Requires manager role |
@@ -1125,7 +1169,7 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Remove Tag from Task** | Allowed on visible tasks | Allowed on visible tasks | Allowed on visible tasks | Blocked (403) | Requires manager role + task visibility |
 | **Get Tags for Task** | Allowed on visible tasks | Allowed on visible tasks | Allowed on visible tasks | Allowed on assigned tasks | Requires task visibility |
 
-### 15.7. Task Attachments Module Behavior
+### 16.7. Task Attachments Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Upload Attachment** | Allowed on any task | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
@@ -1133,7 +1177,7 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Get Attachment Metadata** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
 | **Delete Attachment** | Allowed | Allowed if own file or if uploader is a managed team member | Allowed if own file or if uploader is a managed team member | Allowed if own file | Restricted to Admin, Uploader, or Uploader's Team Lead/Sub Lead |
 
-### 15.8. ETA Extension Requests Module Behavior
+### 16.8. ETA Extension Requests Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create ETA Request** | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Allowed on tasks assigned to self | Requires task assignee status |
@@ -1143,7 +1187,7 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Reject ETA Request** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Requires manager role + task visibility |
 | **Undo Request Decision** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Requires manager role + task visibility |
 
-### 15.9. Task Transfer Requests Module Behavior
+### 16.9. Task Transfer Requests Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Transfer Request** | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Allowed on tasks assigned to self | Target employee must belong to same project |
@@ -1153,13 +1197,13 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Reject Transfer Request** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Requires manager role + task visibility |
 | **Undo Request Decision** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Re-assigns task back to original requester |
 
-### 15.10. Task Status History Module Behavior
+### 16.10. Task Status History Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Status History** | Automatic/System | Automatic/System | Automatic/System | Automatic/System | Triggered during task updates/transfers/ETA extension decisions |
 | **View Task Status History** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
 
-### 15.11. Timesheet Module Behavior
+### 16.11. Timesheet Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Timesheet Entry** | Allowed globally | Allowed for self | Allowed for self | Allowed for self | Must belong to project; timesheet entries cannot overlap; blocked on completed or review tasks |
@@ -1167,3 +1211,12 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Approve/Reject Entry** | Allowed globally | Allowed on managed team member entries | Allowed on managed team member entries | Blocked (403) | Cannot approve/reject own entry |
 | **Patch Update Entry** | Allowed globally | Blocked (403) unless own entry | Blocked (403) unless own entry | Allowed for self only | Subject to task review rules, overlap checks, and project membership |
 | **Delete Timesheet Entry** | Allowed globally | Blocked (403) unless own entry | Blocked (403) unless own entry | Allowed for self only | |
+
+### 16.12. Attachment Module Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Upload Attachment** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | File size capped at 50 MB; stored in S3 with UUID-prefixed key |
+| **View All Attachments** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | Returns all records; no ownership filter |
+| **View Attachment Metadata** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | Returns single record by ID |
+| **Download Attachment** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | Streams directly from S3 with Content-Disposition header |
+| **Delete Attachment** | Allowed globally | Allowed if own file or uploader is managed team member | Allowed if own file or uploader is managed team member | Allowed for own uploads only | Service enforces: Admin OR Uploader OR Uploader's Team Lead/Sub Lead |
