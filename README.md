@@ -949,127 +949,10 @@ Access to protected endpoints is governed by authorities compiled from user role
 
 ---
 
-## 14. Membership Behavior & Access Rules Matrix
-
-The following tables describe the membership behavior and cross-entity authorization checks (managed dynamically in the service layer) for Teams, Projects, Dynamic Role Assignment, and Tasks:
-
-### 14.1. Teams Module Behavior
-| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Create Team** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | |
-| **View Teams List** | All Teams | Teams they lead/sublead/belong to | Teams they lead/sublead/belong to | Teams they belong to | |
-| **View Team By ID** | Any Team | Lead/SubLead/Member | Lead/SubLead/Member | Member | |
-| **Update Team** | Any Team | Teams they lead | Teams they sublead | Blocked (403) | |
-| **Delete Team** | Any Team | Teams they lead | Teams they sublead | Blocked (403) | |
-| **Unassign SubLead** | Any Team | Teams they lead | Blocked (403) | Blocked (403) | |
-| **View Team Members** | Any Team | Teams they lead/sublead/member of | Teams they lead/sublead/member of | Teams they belong to | |
-| **Add Team Members** | Any Team | Teams they lead | Teams they sublead | Blocked (403) | |
-| **Remove Team Members** | Any Team | Teams they lead | Teams they sublead | Blocked (403) | |
-| **View Another Employee's Teams** | Allowed | Blocked (403) | Blocked (403) | Blocked (403) | |
-| **View Own Teams** | Allowed | Allowed | Allowed | Allowed | |
-
-### 14.2. Projects & Project Management Behavior
-| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Create Project** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | |
-| **View Projects List** | All Projects | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Projects they belong to | |
-| **View Project By ID** | Any Project | Must be project member or team member must be member of project | Must be project member or team member must be member of project | Must be Project Member | |
-| **View Project Members** | Any Project | Must be project member or team member must be member of project | Must be project member or team member must be member of project | Must be Project Member | |
-| **View Own Projects** | Allowed | Allowed | Allowed | Allowed | |
-| **View Another Employee's Projects** | Allowed | Allowed if target employee is team member of team they lead | Allowed if target employee is team member of team they sublead | Blocked (403) | |
-| **Update Project** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
-| **Delete Project** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
-| **Add Project Members** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
-| **Remove Project Members** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
-
-### 14.3. Dynamic Role Assignment
-*   **Employee becomes Team Lead of an ACTIVE team**: Gets `TEAM_LEAD` role.
-*   **Employee becomes Sub Lead of an ACTIVE team**: Gets `SUB_LEAD` role.
-*   **Employee no longer leads any ACTIVE team**: `TEAM_LEAD` role removed.
-*   **Employee no longer subleads any ACTIVE team**: `SUB_LEAD` role removed.
-*   **Employee is only a regular team member**: `EMPLOYEE` role only.
-
-### 14.4. Tasks Module Behavior
-| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Create Task** | Any Project | Visible Projects | Visible Projects | Blocked (403) | Requires project access |
-| **View All Tasks** | All Tasks | Own Tasks + Managed Team Project Tasks | Own Tasks + Managed Team Project Tasks | Own Assigned Tasks | |
-| **View Task By ID** | Any Task | Visible Task | Visible Task | Only Assigned Task | |
-| **Update Task** | Any Task | Visible Task | Visible Task | Blocked (403) | |
-| **Delete Task** | Any Task | Visible Task | Visible Task | Blocked (403) | |
-| **Unassign Task** | Any Task | Visible Task | Visible Task | Blocked (403) | |
-| **View Tasks By Employee ID** | Any Employee | Managed Employees + Self | Managed Employees + Self | Self Only | |
-| **View Tasks By Project ID** | Any Project | Visible Projects | Visible Projects | Only own tasks within project | |
-| **View Backlog Tasks** | All Backlog Tasks | All Backlog Tasks | All Backlog Tasks | All Backlog Tasks | Currently unsecured in code |
-
-### 14.5. Task Comments Module Behavior
-| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Add Comment** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
-| **Get Comments** | Allowed (all tasks) | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
-| **Delete Comment** | Allowed | Allowed only if own comment | Allowed only if own comment | Allowed only if own comment | Only Admin or comment Author can delete |
-
-### 14.6. Task Tags & Tag Mapping Module Behavior
-| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Create Task Tag** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | Requires manager role |
-| **Get All Task Tags** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | |
-| **Get Task Tag By ID** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | |
-| **Delete Task Tag** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | Requires manager role |
-| **Add Tag to Task** | Allowed on visible tasks | Allowed on visible tasks | Allowed on visible tasks | Blocked (403) | Requires manager role + task visibility |
-| **Remove Tag from Task** | Allowed on visible tasks | Allowed on visible tasks | Allowed on visible tasks | Blocked (403) | Requires manager role + task visibility |
-| **Get Tags for Task** | Allowed on visible tasks | Allowed on visible tasks | Allowed on visible tasks | Allowed on assigned tasks | Requires task visibility |
-
-### 14.7. Task Attachments Module Behavior
-| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Upload Attachment** | Allowed on any task | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
-| **Download Attachment** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
-| **Get Attachment Metadata** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
-| **Delete Attachment** | Allowed | Allowed if own file or if uploader is a managed team member | Allowed if own file or if uploader is a managed team member | Allowed if own file | Restricted to Admin, Uploader, or Uploader's Team Lead/Sub Lead |
-
-### 14.8. ETA Extension Requests Module Behavior
-| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Create ETA Request** | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Allowed on tasks assigned to self | Requires task assignee status |
-| **View Request By ID** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on own requests | Requires task visibility |
-| **View Task Requests List** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
-| **Approve ETA Request** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Requires manager role + task visibility |
-| **Reject ETA Request** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Requires manager role + task visibility |
-| **Undo Request Decision** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Requires manager role + task visibility |
-
-### 14.9. Task Transfer Requests Module Behavior
-| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Create Transfer Request** | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Allowed on tasks assigned to self | Target employee must belong to same project |
-| **View Request By ID** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on own requests | Requires task visibility |
-| **View Task Requests List** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
-| **Approve Transfer Request** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Target employee must still be member of project |
-| **Reject Transfer Request** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Requires manager role + task visibility |
-| **Undo Request Decision** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Re-assigns task back to original requester |
-
-### 14.10. Task Status History Module Behavior
-| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Create Status History** | Automatic/System | Automatic/System | Automatic/System | Automatic/System | Triggered during task updates/transfers/ETA extension decisions |
-| **View Task Status History** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
-
-### 14.11. Timesheet Module Behavior
-| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Create Timesheet Entry** | Allowed globally | Allowed for self | Allowed for self | Allowed for self | Must belong to project; timesheet entries cannot overlap; blocked on completed or review tasks |
-| **View Timesheet Entries** | Allowed globally | Allowed for self + managed team members | Allowed for self + managed team members | Allowed for self only | Filters by managed team members if no ID is specified |
-| **Approve/Reject Entry** | Allowed globally | Allowed on managed team member entries | Allowed on managed team member entries | Blocked (403) | Cannot approve/reject own entry |
-| **Patch Update Entry** | Allowed globally | Blocked (403) unless own entry | Blocked (403) unless own entry | Allowed for self only | Subject to task review rules, overlap checks, and project membership |
-| **Delete Timesheet Entry** | Allowed globally | Blocked (403) unless own entry | Blocked (403) unless own entry | Allowed for self only | |
-
-
----
-
-## 15. Timesheet Management Module
+## 14. Timesheet Management Module
 **Base Path:** `/api/v1/timesheets` (Requires HTTPOnly cookies)
 
-### 15.1. Get All Timesheet Entries
+### 14.1. Get All Timesheet Entries
 *   **HTTP Method:** `GET`
 *   **Path:** `/`
 *   **Query Parameters (All optional):**
@@ -1108,7 +991,7 @@ The following tables describe the membership behavior and cross-entity authoriza
     ]
     ```
 
-### 15.2. Create Timesheet Entry
+### 14.2. Create Timesheet Entry
 *   **HTTP Method:** `POST`
 *   **Path:** `/`
 *   **Request Body ([TimesheetRequest](./src/main/java/com/elite/employeemanager/timesheet/dto/TimesheetRequest.java)):**
@@ -1136,7 +1019,7 @@ The following tables describe the membership behavior and cross-entity authoriza
     *   Cannot log against tasks that are in `PENDING_REVIEW` or `COMPLETED` status.
 *   **Success Response (201 Created):** Returns the created timesheet entry JSON response.
 
-### 15.3. Update Timesheet Entry Status (Approval/Rejection)
+### 14.3. Update Timesheet Entry Status (Approval/Rejection)
 *   **HTTP Method:** `PATCH`
 *   **Path:** `/{id}/status`
 *   **Request Body ([TimesheetStatusUpdateRequest](./src/main/java/com/elite/employeemanager/timesheet/dto/TimesheetStatusUpdateRequest.java)):**
@@ -1148,7 +1031,7 @@ The following tables describe the membership behavior and cross-entity authoriza
     ```
 *   **Success Response (200 OK):** Returns the updated timesheet entry JSON response.
 
-### 15.4. Patch Update Timesheet Entry
+### 14.4. Patch Update Timesheet Entry
 *   **HTTP Method:** `PATCH`
 *   **Path:** `/{id}`
 *   **Request Body (All fields optional):**
@@ -1164,9 +1047,123 @@ The following tables describe the membership behavior and cross-entity authoriza
     *   Applies the same overlap, duration matching, project membership, and task status validations as entry creation.
 *   **Success Response (200 OK):** Returns the updated timesheet entry JSON response.
 
-### 15.5. Delete Timesheet Entry
+### 14.5. Delete Timesheet Entry
 *   **HTTP Method:** `DELETE`
 *   **Path:** `/{id}`
 *   **Success Response (200 OK):** `"Timesheet Entry deleted successfully"`
 
+---
 
+## 15. Membership Behavior & Access Rules Matrix
+
+The following tables describe the membership behavior and cross-entity authorization checks (managed dynamically in the service layer) for Teams, Projects, Dynamic Role Assignment, and Tasks:
+
+### 15.1. Teams Module Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Create Team** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | |
+| **View Teams List** | All Teams | Teams they lead/sublead/belong to | Teams they lead/sublead/belong to | Teams they belong to | |
+| **View Team By ID** | Any Team | Lead/SubLead/Member | Lead/SubLead/Member | Member | |
+| **Update Team** | Any Team | Teams they lead | Teams they sublead | Blocked (403) | |
+| **Delete Team** | Any Team | Teams they lead | Teams they sublead | Blocked (403) | |
+| **Unassign SubLead** | Any Team | Teams they lead | Blocked (403) | Blocked (403) | |
+| **View Team Members** | Any Team | Teams they lead/sublead/member of | Teams they lead/sublead/member of | Teams they belong to | |
+| **Add Team Members** | Any Team | Teams they lead | Teams they sublead | Blocked (403) | |
+| **Remove Team Members** | Any Team | Teams they lead | Teams they sublead | Blocked (403) | |
+| **View Another Employee's Teams** | Allowed | Blocked (403) | Blocked (403) | Blocked (403) | |
+| **View Own Teams** | Allowed | Allowed | Allowed | Allowed | |
+
+### 15.2. Projects & Project Management Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Create Project** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | |
+| **View Projects List** | All Projects | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Projects they belong to | |
+| **View Project By ID** | Any Project | Must be project member or team member must be member of project | Must be project member or team member must be member of project | Must be Project Member | |
+| **View Project Members** | Any Project | Must be project member or team member must be member of project | Must be project member or team member must be member of project | Must be Project Member | |
+| **View Own Projects** | Allowed | Allowed | Allowed | Allowed | |
+| **View Another Employee's Projects** | Allowed | Allowed if target employee is team member of team they lead | Allowed if target employee is team member of team they sublead | Blocked (403) | |
+| **Update Project** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
+| **Delete Project** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
+| **Add Project Members** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
+| **Remove Project Members** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
+
+### 15.3. Dynamic Role Assignment
+*   **Employee becomes Team Lead of an ACTIVE team**: Gets `TEAM_LEAD` role.
+*   **Employee becomes Sub Lead of an ACTIVE team**: Gets `SUB_LEAD` role.
+*   **Employee no longer leads any ACTIVE team**: `TEAM_LEAD` role removed.
+*   **Employee no longer subleads any ACTIVE team**: `SUB_LEAD` role removed.
+*   **Employee is only a regular team member**: `EMPLOYEE` role only.
+
+### 15.4. Tasks Module Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Create Task** | Any Project | Visible Projects | Visible Projects | Blocked (403) | Requires project access |
+| **View All Tasks** | All Tasks | Own Tasks + Managed Team Project Tasks | Own Tasks + Managed Team Project Tasks | Own Assigned Tasks | |
+| **View Task By ID** | Any Task | Visible Task | Visible Task | Only Assigned Task | |
+| **Update Task** | Any Task | Visible Task | Visible Task | Blocked (403) | |
+| **Delete Task** | Any Task | Visible Task | Visible Task | Blocked (403) | |
+| **Unassign Task** | Any Task | Visible Task | Visible Task | Blocked (403) | |
+| **View Tasks By Employee ID** | Any Employee | Managed Employees + Self | Managed Employees + Self | Self Only | |
+| **View Tasks By Project ID** | Any Project | Visible Projects | Visible Projects | Only own tasks within project | |
+| **View Backlog Tasks** | All Backlog Tasks | All Backlog Tasks | All Backlog Tasks | All Backlog Tasks | Currently unsecured in code |
+
+### 15.5. Task Comments Module Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Add Comment** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
+| **Get Comments** | Allowed (all tasks) | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
+| **Delete Comment** | Allowed | Allowed only if own comment | Allowed only if own comment | Allowed only if own comment | Only Admin or comment Author can delete |
+
+### 15.6. Task Tags & Tag Mapping Module Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Create Task Tag** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | Requires manager role |
+| **Get All Task Tags** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | |
+| **Get Task Tag By ID** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | |
+| **Delete Task Tag** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | Requires manager role |
+| **Add Tag to Task** | Allowed on visible tasks | Allowed on visible tasks | Allowed on visible tasks | Blocked (403) | Requires manager role + task visibility |
+| **Remove Tag from Task** | Allowed on visible tasks | Allowed on visible tasks | Allowed on visible tasks | Blocked (403) | Requires manager role + task visibility |
+| **Get Tags for Task** | Allowed on visible tasks | Allowed on visible tasks | Allowed on visible tasks | Allowed on assigned tasks | Requires task visibility |
+
+### 15.7. Task Attachments Module Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Upload Attachment** | Allowed on any task | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
+| **Download Attachment** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
+| **Get Attachment Metadata** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
+| **Delete Attachment** | Allowed | Allowed if own file or if uploader is a managed team member | Allowed if own file or if uploader is a managed team member | Allowed if own file | Restricted to Admin, Uploader, or Uploader's Team Lead/Sub Lead |
+
+### 15.8. ETA Extension Requests Module Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Create ETA Request** | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Allowed on tasks assigned to self | Requires task assignee status |
+| **View Request By ID** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on own requests | Requires task visibility |
+| **View Task Requests List** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
+| **Approve ETA Request** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Requires manager role + task visibility |
+| **Reject ETA Request** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Requires manager role + task visibility |
+| **Undo Request Decision** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Requires manager role + task visibility |
+
+### 15.9. Task Transfer Requests Module Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Create Transfer Request** | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Allowed on tasks assigned to self | Target employee must belong to same project |
+| **View Request By ID** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on own requests | Requires task visibility |
+| **View Task Requests List** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
+| **Approve Transfer Request** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Target employee must still be member of project |
+| **Reject Transfer Request** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Requires manager role + task visibility |
+| **Undo Request Decision** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Re-assigns task back to original requester |
+
+### 15.10. Task Status History Module Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Create Status History** | Automatic/System | Automatic/System | Automatic/System | Automatic/System | Triggered during task updates/transfers/ETA extension decisions |
+| **View Task Status History** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
+
+### 15.11. Timesheet Module Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Create Timesheet Entry** | Allowed globally | Allowed for self | Allowed for self | Allowed for self | Must belong to project; timesheet entries cannot overlap; blocked on completed or review tasks |
+| **View Timesheet Entries** | Allowed globally | Allowed for self + managed team members | Allowed for self + managed team members | Allowed for self only | Filters by managed team members if no ID is specified |
+| **Approve/Reject Entry** | Allowed globally | Allowed on managed team member entries | Allowed on managed team member entries | Blocked (403) | Cannot approve/reject own entry |
+| **Patch Update Entry** | Allowed globally | Blocked (403) unless own entry | Blocked (403) unless own entry | Allowed for self only | Subject to task review rules, overlap checks, and project membership |
+| **Delete Timesheet Entry** | Allowed globally | Blocked (403) unless own entry | Blocked (403) unless own entry | Allowed for self only | |
