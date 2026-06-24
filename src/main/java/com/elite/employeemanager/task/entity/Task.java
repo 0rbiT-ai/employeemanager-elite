@@ -74,4 +74,6 @@ public class Task extends AuditSoftDeleteEntity {
     @Column(columnDefinition = "TEXT")
     private String reviewComment;
 
+    private BigDecimal loggedHours;
+
 }

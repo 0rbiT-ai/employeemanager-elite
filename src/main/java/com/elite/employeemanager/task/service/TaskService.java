@@ -57,6 +57,9 @@ public class TaskService {
         if (task.getEtaHours() == null) {
             task.setEtaHours(new java.math.BigDecimal("0.00"));
         }
+        if (task.getLoggedHours() == null) {
+            task.setLoggedHours(BigDecimal.ZERO);
+        }
         if (task.getTaskNumber()==null || task.getTaskNumber().isBlank()){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Task Number is required");
         }
@@ -535,10 +538,7 @@ public class TaskService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only submit tasks assigned to you");
         }
 
-        List<TimesheetEntry> logs = timesheetEntryRepository.findByTask(task);
-        BigDecimal totalHoursLogged = logs.stream()
-                .map(TimesheetEntry::getHoursSpent)
-                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        BigDecimal totalHoursLogged = task.getLoggedHours() != null ? task.getLoggedHours() : BigDecimal.ZERO;
 
         boolean isHoursBreached = totalHoursLogged.compareTo(task.getEtaHours()) > 0;
         boolean isDateBreached = LocalDate.now().isAfter(task.getEtaDate());
@@ -635,10 +635,7 @@ public class TaskService {
 
     public String determineStatusAfterUndo(Task task, String previousStatus) {
         if ("OPEN".equals(previousStatus) || "IN_PROGRESS".equals(previousStatus) || "OVER_ETA".equals(previousStatus) || "ETA_EXTENDED".equals(previousStatus)) {
-            List<TimesheetEntry> logs = timesheetEntryRepository.findByTask(task);
-            BigDecimal totalHoursLogged = logs.stream()
-                    .map(TimesheetEntry::getHoursSpent)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal totalHoursLogged = task.getLoggedHours() != null ? task.getLoggedHours() : BigDecimal.ZERO;
 
             boolean isHoursBreached = totalHoursLogged.compareTo(task.getEtaHours()) > 0;
             boolean isDateBreached = LocalDate.now().isAfter(task.getEtaDate());
@@ -663,13 +660,16 @@ public class TaskService {
     @Transactional
     public void reevaluateTaskStatus(Task task) {
         if (task == null) return;
+        
+        List<TimesheetEntry> logs = timesheetEntryRepository.findByTask(task);
+        BigDecimal totalHoursLogged = logs.stream()
+                .map(TimesheetEntry::getHoursSpent)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        task.setLoggedHours(totalHoursLogged);
+        
         String currentStatus = task.getStatus();
         if ("OPEN".equals(currentStatus) || "IN_PROGRESS".equals(currentStatus) || "OVER_ETA".equals(currentStatus) || "TRANSFERRED".equals(currentStatus) || "ETA_EXTENDED".equals(currentStatus)) {
-            List<TimesheetEntry> logs = timesheetEntryRepository.findByTask(task);
-            BigDecimal totalHoursLogged = logs.stream()
-                    .map(TimesheetEntry::getHoursSpent)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
             boolean isHoursBreached = totalHoursLogged.compareTo(task.getEtaHours()) > 0;
             boolean isDateBreached = LocalDate.now().isAfter(task.getEtaDate());
 
@@ -710,6 +710,7 @@ public class TaskService {
                 }
             }
         }
+        taskRepository.save(task);
     }
 
     @Transactional
