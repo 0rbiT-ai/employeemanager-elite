@@ -218,10 +218,24 @@ public class TimesheetEntryService {
 
         validateMembership(project, task, employee);
 
+        if(task!=null && task.getStatus()!=null){
+            if ("PENDING_REVIEW".equalsIgnoreCase(task.getStatus())){
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Cant create timesheet entry for this task when already submitted for review");
+            }
+        }
+
         boolean isBreak = "BREAK".equalsIgnoreCase(request.getWorkCategory());
         if (!isBreak && task == null && project == null && (request.getBugNumber() == null || request.getBugNumber().isBlank())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Work logs must be linked to at least one reference (task, project, or bug).");
         }
+
+        List<TimesheetEntry> dateEntries = timesheetEntryRepository.findByEmployeeAndWorkDate(employee,request.getDate());
+        dateEntries.forEach(entry -> {
+            if (entry.getStartTime().isBefore(request.getEndTime()) && request.getStartTime().isBefore(entry.getEndTime())){
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Entries cannot overlap");
+            }
+        });
+
 
         TimesheetEntry entry = TimesheetEntry.builder()
                 .employee(employee)
@@ -241,7 +255,19 @@ public class TimesheetEntryService {
 
         TimesheetEntry savedEntry = timesheetEntryRepository.save(entry);
 
-        // Auto-flag OVER_ETA if task is OPEN or IN_PROGRESS and has breached ETA
+        if (task != null && "OPEN".equals(task.getStatus())) {
+            String oldStatus = task.getStatus();
+            task.setStatus("IN_PROGRESS");
+            taskRepository.save(task);
+            taskStatusHistoryService.createTaskStatusHistory(
+                    task,
+                    oldStatus,
+                    "IN_PROGRESS",
+                    securityUtils.getCurrentUser(),
+                    "Task automatically marked IN_PROGRESS upon time logging"
+            );
+        }
+
         if (task != null && ("OPEN".equals(task.getStatus()) || "IN_PROGRESS".equals(task.getStatus()))) {
             List<TimesheetEntry> logs = timesheetEntryRepository.findByTask(task);
             BigDecimal totalHoursLogged = logs.stream()
