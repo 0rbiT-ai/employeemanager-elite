@@ -5,6 +5,7 @@ import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.employee.repository.EmployeeRepository;
 import com.elite.employeemanager.project.repository.ProjectEmployeeRepository;
 import com.elite.employeemanager.task.entity.Task;
+import com.elite.employeemanager.task.entity.TaskStatusHistory;
 import com.elite.employeemanager.task.entity.TaskTransfer;
 import com.elite.employeemanager.task.repository.EtaExtensionRepository;
 import com.elite.employeemanager.task.repository.TaskRepository;
@@ -133,18 +134,21 @@ public class TaskTransferService {
         projectEmployeeRepository.findByProjectAndEmployee(task.getProject(), request.getTargetEmployee())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target employee does not belong to the project"));
 
+        String oldStatus = task.getStatus();
+
         request.setStatus("APPROVED");
         request.setReviewedAt(LocalDateTime.now());
         request.setReviewedBy(securityUtils.getCurrentUser());
 
         task.setAssignedTo(request.getTargetEmployee());
+        task.setStatus("TRANSFERRED");
         taskRepository.save(task);
         etaExtensionRepository.deleteByTaskAndStatus(task, "PENDING");
 
         taskStatusHistoryService.createTaskStatusHistory(
                 task,
-                task.getStatus(),
-                task.getStatus(),
+                oldStatus,
+                "TRANSFERRED",
                 securityUtils.getCurrentUser(),
                 "Task Transferred from "
                         + request.getRequestedBy().getName()
@@ -219,13 +223,26 @@ public class TaskTransferService {
             }
             projectEmployeeRepository.findByProjectAndEmployee(task.getProject(), request.getRequestedBy())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Requested employee does not belong to the project"));
+
+            List<TaskStatusHistory> historyList = taskStatusHistoryService.getTaskStatusHistoryByTaskId(task.getId());
+            String previousStatus = "IN_PROGRESS";
+            for (int i = historyList.size() - 1; i >= 0; i--) {
+                TaskStatusHistory h = historyList.get(i);
+                if ("TRANSFERRED".equals(h.getNewStatus())) {
+                    previousStatus = h.getOldStatus();
+                    break;
+                }
+            }
+
             task.setAssignedTo(request.getRequestedBy());
+            String finalStatus = taskService.determineStatusAfterUndo(task, previousStatus);
+            task.setStatus(finalStatus);
             taskRepository.save(task);
 
             taskStatusHistoryService.createTaskStatusHistory(
                     task,
-                    task.getStatus(),
-                    task.getStatus(),
+                    "TRANSFERRED",
+                    finalStatus,
                     securityUtils.getCurrentUser(),
                     "Undid task transfer. Reassigned task from "
                             + request.getTargetEmployee().getName()

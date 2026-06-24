@@ -268,7 +268,7 @@ public class TimesheetEntryService {
             );
         }
 
-        if (task != null && ("OPEN".equals(task.getStatus()) || "IN_PROGRESS".equals(task.getStatus()))) {
+        if (task != null && ("OPEN".equals(task.getStatus()) || "IN_PROGRESS".equals(task.getStatus()) || "TRANSFERRED".equals(task.getStatus()) || "ETA_EXTENDED".equals(task.getStatus()))) {
             List<TimesheetEntry> logs = timesheetEntryRepository.findByTask(task);
             BigDecimal totalHoursLogged = logs.stream()
                     .map(TimesheetEntry::getHoursSpent)

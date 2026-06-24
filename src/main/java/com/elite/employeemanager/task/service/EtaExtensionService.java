@@ -5,6 +5,7 @@ import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.employee.repository.EmployeeRepository;
 import com.elite.employeemanager.task.entity.EtaExtension;
 import com.elite.employeemanager.task.entity.Task;
+import com.elite.employeemanager.task.entity.TaskStatusHistory;
 import com.elite.employeemanager.task.repository.EtaExtensionRepository;
 import com.elite.employeemanager.task.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
@@ -203,14 +204,27 @@ public class EtaExtensionService {
                         HttpStatus.BAD_REQUEST,
                         "Task is no longer assigned to the requesting employee");
             }
+            List<TaskStatusHistory> historyList = taskStatusHistoryService.getTaskStatusHistoryByTaskId(task.getId());
+            String previousStatus = "IN_PROGRESS";
+            for (int i = historyList.size() - 1; i >= 0; i--) {
+                TaskStatusHistory h = historyList.get(i);
+                if ("ETA_EXTENDED".equals(h.getNewStatus())) {
+                    previousStatus = h.getOldStatus();
+                    break;
+                }
+            }
+
             task.setEtaDate(request.getOldEtaDate());
             task.setExtendedEtaDate(request.getOldEtaDate().equals(task.getOriginalEtaDate()) ? null : request.getOldEtaDate());
+            
+            String finalStatus = taskService.determineStatusAfterUndo(task, previousStatus);
+            task.setStatus(finalStatus);
             taskRepository.save(task);
 
             taskStatusHistoryService.createTaskStatusHistory(
                     task,
-                    task.getStatus(),
-                    task.getStatus(),
+                    "ETA_EXTENDED",
+                    finalStatus,
                     securityUtils.getCurrentUser(),
                     "Undid ETA extension approval. Reverted ETA to " + request.getOldEtaDate()
             );

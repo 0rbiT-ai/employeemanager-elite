@@ -633,4 +633,31 @@ public class TaskService {
         return taskRepository.save(task);
     }
 
+    public String determineStatusAfterUndo(Task task, String previousStatus) {
+        if ("OPEN".equals(previousStatus) || "IN_PROGRESS".equals(previousStatus) || "OVER_ETA".equals(previousStatus) || "ETA_EXTENDED".equals(previousStatus)) {
+            List<TimesheetEntry> logs = timesheetEntryRepository.findByTask(task);
+            BigDecimal totalHoursLogged = logs.stream()
+                    .map(TimesheetEntry::getHoursSpent)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            boolean isHoursBreached = totalHoursLogged.compareTo(task.getEtaHours()) > 0;
+            boolean isDateBreached = LocalDate.now().isAfter(task.getEtaDate());
+
+            if (isHoursBreached || isDateBreached) {
+                return "OVER_ETA";
+            }
+
+            if ("OVER_ETA".equals(previousStatus)) {
+                return "IN_PROGRESS";
+            }
+
+            if ("OPEN".equals(previousStatus)) {
+                if (totalHoursLogged.compareTo(BigDecimal.ZERO) > 0) {
+                    return "IN_PROGRESS";
+                }
+            }
+        }
+        return previousStatus;
+    }
+
 }
