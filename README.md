@@ -693,6 +693,43 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **Path:** `/{id}/task-transfers`
 *   **Success Response (200 OK):** Returns a list of [TaskTransfer](./src/main/java/com/elite/employeemanager/task/entity/TaskTransfer.java) requests for this task.
 
+### 7.14. Submit Task Completion Review
+*   **HTTP Method:** `POST`
+*   **Path:** `/{id}/submit-review`
+*   **Access Allowed:** Only the assigned employee can submit.
+*   **Request Body ([TaskReviewSubmitRequest](./src/main/java/com/elite/employeemanager/task/dto/TaskReviewSubmitRequest.java)):**
+    ```json
+    {
+      "justification": "Task completed successfully, all tests passed." // Required only if task breaches ETA date/hours
+    }
+    ```
+*   **Success Response (200 OK):** Returns the updated `Task` object (status: `"PENDING_REVIEW"`).
+
+### 7.15. Review Task Completion
+*   **HTTP Method:** `POST`
+*   **Path:** `/{id}/review`
+*   **Access Allowed:** Admin, Team Lead, or Sub Lead with managed team permissions.
+*   **Request Body ([TaskReviewRequest](./src/main/java/com/elite/employeemanager/task/dto/TaskReviewRequest.java)):**
+    ```json
+    {
+      "status": "APPROVED", // Allowed: "APPROVED", "REJECTED"
+      "comment": "Nice work!"
+    }
+    ```
+*   **Success Response (200 OK):** Returns the updated `Task` object. Status transitions to `"COMPLETED"` if approved, or reverts to `"IN_PROGRESS"` if rejected. Sets `completionReviewStatus` to `"APPROVED"` or `"REJECTED"`.
+
+### 7.16. Unsubmit Task Review
+*   **HTTP Method:** `POST`
+*   **Path:** `/{id}/unsubmit-review`
+*   **Access Allowed:** Only the assigned employee can unsubmit.
+*   **Success Response (200 OK):** Returns the updated `Task` object. Reverts task status to its state before review submission (typically `IN_PROGRESS` or `OVER_ETA`) and clears `justification`.
+
+### 7.17. Undo Task Review Decision
+*   **HTTP Method:** `POST`
+*   **Path:** `/{id}/undo-review`
+*   **Access Allowed:** Admin, Team Lead, or Sub Lead with managed team permissions.
+*   **Success Response (200 OK):** Returns the updated `Task` object. Status is set back to `"PENDING_REVIEW"` and `completionReviewStatus` and `reviewComment` are reset to `null`.
+
 ---
 
 ## 8. Task Comments Module
@@ -1016,5 +1053,120 @@ The following tables describe the membership behavior and cross-entity authoriza
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Status History** | Automatic/System | Automatic/System | Automatic/System | Automatic/System | Triggered during task updates/transfers/ETA extension decisions |
 | **View Task Status History** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
+
+### 14.11. Timesheet Module Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Create Timesheet Entry** | Allowed globally | Allowed for self | Allowed for self | Allowed for self | Must belong to project; timesheet entries cannot overlap; blocked on completed or review tasks |
+| **View Timesheet Entries** | Allowed globally | Allowed for self + managed team members | Allowed for self + managed team members | Allowed for self only | Filters by managed team members if no ID is specified |
+| **Approve/Reject Entry** | Allowed globally | Allowed on managed team member entries | Allowed on managed team member entries | Blocked (403) | Cannot approve/reject own entry |
+| **Patch Update Entry** | Allowed globally | Blocked (403) unless own entry | Blocked (403) unless own entry | Allowed for self only | Subject to task review rules, overlap checks, and project membership |
+| **Delete Timesheet Entry** | Allowed globally | Blocked (403) unless own entry | Blocked (403) unless own entry | Allowed for self only | |
+
+
+---
+
+## 15. Timesheet Management Module
+**Base Path:** `/api/v1/timesheets` (Requires HTTPOnly cookies)
+
+### 15.1. Get All Timesheet Entries
+*   **HTTP Method:** `GET`
+*   **Path:** `/`
+*   **Query Parameters (All optional):**
+    *   `employeeId` (Long): Target employee database ID.
+    *   `date` (LocalDate): Specific date to filter (Format: `YYYY-MM-DD`).
+    *   `status` (String): Filter status (e.g. `"APPROVED"`, `"REJECTED"`, `"PENDING"`).
+*   **Success Response (200 OK):** Returns a list of timesheet entry responses:
+    ```json
+    [
+      {
+        "id": 1,
+        "employeeId": 2,
+        "employeeName": "Jane Doe",
+        "task": {
+          "id": 1,
+          "taskNumber": "TSK-0001",
+          "title": "Setup database indexes"
+        },
+        "project": {
+          "id": 1,
+          "projectName": "Elite Portal"
+        },
+        "bugNumber": null,
+        "workCategory": "TASK",
+        "date": "2026-06-15",
+        "startTime": "2026-06-15T09:00:00",
+        "endTime": "2026-06-15T17:00:00",
+        "durationHours": 8.00,
+        "description": "Implemented indexes on task status history table",
+        "justification": null,
+        "status": "APPROVED",
+        "managerComment": null,
+        "approvedBy": "Alex Rivera",
+        "approvedAt": "2026-06-15T18:00:00"
+      }
+    ]
+    ```
+
+### 15.2. Create Timesheet Entry
+*   **HTTP Method:** `POST`
+*   **Path:** `/`
+*   **Request Body ([TimesheetRequest](./src/main/java/com/elite/employeemanager/timesheet/dto/TimesheetRequest.java)):**
+    ```json
+    {
+      "employee": { "id": 2 },
+      "task": { "id": 1 },
+      "project": { "id": 1 },
+      "bugNumber": null,
+      "workCategory": "TASK", // Allowed: "TASK", "BREAK", "MEETING", "SUPPORT", "LEARNING", "OTHER"
+      "date": "2026-06-15",
+      "startTime": "2026-06-15T09:00:00",
+      "endTime": "2026-06-15T17:00:00",
+      "durationHours": 8.00,
+      "description": "Implemented indexes on task status history table",
+      "justification": null
+    }
+    ```
+*   **Validation Rules:**
+    *   `employee.id`, `workCategory`, `startTime`, `endTime`, `date`, `description` are required.
+    *   End time must be after start time.
+    *   If `durationHours` is provided, it must exactly match the calculated difference between start and end times.
+    *   Logged logs must not overlap with any existing entries on the same date for that employee.
+    *   If not a break, must link to at least one reference (task, project, or bug).
+    *   Cannot log against tasks that are in `PENDING_REVIEW` or `COMPLETED` status.
+*   **Success Response (201 Created):** Returns the created timesheet entry JSON response.
+
+### 15.3. Update Timesheet Entry Status (Approval/Rejection)
+*   **HTTP Method:** `PATCH`
+*   **Path:** `/{id}/status`
+*   **Request Body ([TimesheetStatusUpdateRequest](./src/main/java/com/elite/employeemanager/timesheet/dto/TimesheetStatusUpdateRequest.java)):**
+    ```json
+    {
+      "status": "APPROVED", // Allowed: "APPROVED", "REJECTED"
+      "managerComment": "Approved. Good job."
+    }
+    ```
+*   **Success Response (200 OK):** Returns the updated timesheet entry JSON response.
+
+### 15.4. Patch Update Timesheet Entry
+*   **HTTP Method:** `PATCH`
+*   **Path:** `/{id}`
+*   **Request Body (All fields optional):**
+    ```json
+    {
+      "startTime": "2026-06-15T10:00:00",
+      "endTime": "2026-06-15T17:00:00",
+      "durationHours": 7.00,
+      "description": "Updated hours log description"
+    }
+    ```
+*   **Validation Rules:**
+    *   Applies the same overlap, duration matching, project membership, and task status validations as entry creation.
+*   **Success Response (200 OK):** Returns the updated timesheet entry JSON response.
+
+### 15.5. Delete Timesheet Entry
+*   **HTTP Method:** `DELETE`
+*   **Path:** `/{id}`
+*   **Success Response (200 OK):** `"Timesheet Entry deleted successfully"`
 
 
