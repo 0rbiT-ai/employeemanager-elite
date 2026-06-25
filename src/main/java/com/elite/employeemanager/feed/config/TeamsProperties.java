@@ -7,11 +7,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Data
 public class TeamsProperties {
 
-    private String tenantId;
-    private String clientId;
-    private String clientSecret;
-
-    private String teamId;
-    private String channelId;
+    private String webhookUrl;
 
 }

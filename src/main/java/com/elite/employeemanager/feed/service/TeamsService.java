@@ -1,5 +1,5 @@
 package com.elite.employeemanager.feed.service;
-
+import java.util.Map;
 import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.feed.config.TeamsProperties;
@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -20,15 +21,38 @@ import org.springframework.web.server.ResponseStatusException;
 @Slf4j
 public class TeamsService {
 
-    private final TeamsTokenService teamsTokenService;
     private final TeamsProperties teamsProperties;
     private final RestClient restClient;
     private final SecurityUtils securityUtils;
 
     public String postMessage(String title, String content) {
-        return postMessageInternal(title, content, true);
-    }
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
 
+        // Formulate the message text
+        String formattedText = content + "<br/><br/><small><em>Posted by " + currentEmployee.getName() + "</em></small>";
+        // Create simple payload map
+        Map<String, String> payload = Map.of(
+                "title", title,
+                "text", formattedText
+        );
+        try {
+            restClient.post()
+                    .uri(teamsProperties.getWebhookUrl())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .toBodilessEntity(); // Webhooks return 202 Accepted with empty body
+
+            return "SUCCESS";
+        } catch (RestClientResponseException e) {
+            log.error("Teams webhook call failed. Status: {}, Response: {}", e.getStatusCode(), e.getResponseBodyAsString(), e);
+            throw new ResponseStatusException(HttpStatus.valueOf(e.getStatusCode().value()), "Teams webhook post failed", e);
+        } catch (Exception e) {
+            log.error("Unexpected error calling Teams webhook", e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Teams webhook integration failed", e);
+        }
+    }
+    /*
     private String postMessageInternal(String title, String content, boolean retryOnUnauthorized) {
         String token = teamsTokenService.getAccessToken();
 
@@ -80,4 +104,5 @@ public class TeamsService {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Teams integration failed due to an unexpected error", e);
         }
     }
+     */
 }
