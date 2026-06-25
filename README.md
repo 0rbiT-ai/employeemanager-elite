@@ -1062,10 +1062,9 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **HTTP Method:** `POST`
 *   **Path:** `/`
 *   **Content-Type:** `multipart/form-data`
-*   **Query Param:** `meetingId` — ID of the meeting to link (required)
 *   **Form Param:** `file` — the file to upload (max 50 MB)
 *   **Required Permission:** `ATTACHMENT_UPLOAD`
-*   **Success Response (201 Created):** Returns the saved `Attachment` object (id, fileName, filePath, fileSizeBytes, uploadedBy, uploadedAt, meeting).
+*   **Success Response (201 Created):** Returns the saved `Attachment` object (id, fileName, filePath, fileSizeBytes, uploadedBy, uploadedAt).
 
 ### 15.2. Get All Attachments
 *   **HTTP Method:** `GET`
@@ -1222,14 +1221,6 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **Required Permission:** `MEETING_UPDATE`
 *   **Success Response (200 OK):** Returns the updated meeting with the attendee removed.
 *   **Error Response (403 Forbidden):** `"You are not authorized to modify attendees for this meeting"`
-
-### 17.8. Get Meeting Attachments
-*   **HTTP Method:** `GET`
-*   **Path:** `/{id}/attachments`
-*   **Required Permission:** `ATTACHMENT_VIEW`
-*   **Success Response (200 OK):** Returns a list of all `Attachment` objects associated with this meeting.
-*   **Error Response (404 Not Found):** `"Meeting not found"`
-
 ---
 
 ## 18. Membership Behavior & Access Rules Matrix
@@ -1349,7 +1340,7 @@ The following tables describe the membership behavior and cross-entity authoriza
 ### 18.12. Attachment Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Upload Attachment** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | File size capped at 50 MB; stored in S3; linked to meeting via `meetingId` parameter |
+| **Upload Attachment** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | File size capped at 50 MB; stored in S3 with UUID-prefixed key |
 | **View All Attachments** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | Returns all records; no ownership filter |
 | **View Attachment Metadata** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | Returns single record by ID |
 | **Download Attachment** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | Streams directly from S3 with Content-Disposition header |
@@ -1372,5 +1363,3 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Update Meeting** | Allowed globally | Allowed globally | Allowed globally | Allowed if creator | Requires `MEETING_UPDATE`; creator check matched by User ID |
 | **Delete Meeting** | Allowed globally | Allowed globally | Allowed globally | Allowed if creator | Requires `MEETING_DELETE`; creator check matched by User ID |
 | **Add/Remove Attendees** | Allowed globally | Allowed globally | Allowed globally | Allowed if creator | Requires `MEETING_UPDATE`; creator check matched by User ID |
-| **Upload Attachment to Meeting** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | Requires `ATTACHMENT_UPLOAD`; links uploaded file to meeting ID |
-| **View Meeting Attachments** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | Requires `ATTACHMENT_VIEW`; returns all attachments linked to meeting |

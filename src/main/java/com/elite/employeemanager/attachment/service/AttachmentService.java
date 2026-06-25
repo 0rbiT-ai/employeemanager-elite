@@ -1,11 +1,9 @@
-package com.elite.employeemanager.meeting.attachment.service;
+package com.elite.employeemanager.attachment.service;
 
-import com.elite.employeemanager.meeting.attachment.entity.Attachment;
-import com.elite.employeemanager.meeting.attachment.repository.AttachmentRepository;
+import com.elite.employeemanager.attachment.entity.Attachment;
+import com.elite.employeemanager.attachment.repository.AttachmentRepository;
 import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 import com.elite.employeemanager.employee.entity.Employee;
-import com.elite.employeemanager.meeting.entity.Meeting;
-import com.elite.employeemanager.meeting.repository.MeetingRepository;
 import com.elite.employeemanager.s3aws.service.S3Service;
 import com.elite.employeemanager.team.entity.TeamEmployee;
 import com.elite.employeemanager.team.repository.TeamEmployeeRepository;
@@ -29,21 +27,16 @@ import java.util.UUID;
 public class AttachmentService {
 
     private final AttachmentRepository attachmentRepository;
-    private final MeetingRepository meetingRepository;
     private final S3Service s3Service;
     private final SecurityUtils securityUtils;
     private final TeamEmployeeRepository teamEmployeeRepository;
     private final long MAX_FILE_SIZE = 50*1024*1024;
 
     @Transactional
-    public Attachment uploadAttachment(MultipartFile file, Long meetingId){
+    public Attachment uploadAttachment(MultipartFile file){
         if (file.getSize() > MAX_FILE_SIZE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File size exceeds the maximum limit of 50MB");
         }
-        
-        Meeting meeting = meetingRepository.findById(meetingId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Meeting not found"));
-
         Employee employee = securityUtils.getCurrentEmployee();
         String originalFileName = Objects.requireNonNull(file.getOriginalFilename(), "Filename cannot be null");
         String key = "attachments/"+ UUID.randomUUID()+"-"+originalFileName;
@@ -58,7 +51,6 @@ public class AttachmentService {
                 .fileSizeBytes(file.getSize())
                 .uploadedBy(employee)
                 .uploadedAt(LocalDateTime.now())
-                .meeting(meeting)
                 .build();
         try{
             return attachmentRepository.saveAndFlush(attachment);
@@ -109,10 +101,4 @@ public class AttachmentService {
         return attachmentRepository.findAll();
     }
 
-    @Transactional(readOnly = true)
-    public List<Attachment> getAttachmentsByMeetingId(Long meetingId){
-        Meeting meeting = meetingRepository.findById(meetingId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Meeting not found"));
-        return attachmentRepository.findByMeeting(meeting);
-    }
 }
