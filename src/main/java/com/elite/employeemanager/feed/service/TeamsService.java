@@ -1,5 +1,7 @@
 package com.elite.employeemanager.feed.service;
 
+import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
+import com.elite.employeemanager.employee.entity.Employee;
 import com.elite.employeemanager.feed.config.TeamsProperties;
 import com.elite.employeemanager.feed.dto.TeamsMessageRequest;
 import com.elite.employeemanager.feed.dto.TeamsMessageResponse;
@@ -21,6 +23,7 @@ public class TeamsService {
     private final TeamsTokenService teamsTokenService;
     private final TeamsProperties teamsProperties;
     private final RestClient restClient;
+    private final SecurityUtils securityUtils;
 
     public String postMessage(String title, String content) {
         return postMessageInternal(title, content, true);
@@ -29,11 +32,11 @@ public class TeamsService {
     private String postMessageInternal(String title, String content, boolean retryOnUnauthorized) {
         String token = teamsTokenService.getAccessToken();
 
-        String html = "<h3>" + title + "</h3><p>" + content + "</p>";
+        Employee currentEmployee = securityUtils.getCurrentEmployee();
 
-        TeamsMessageRequest request = new TeamsMessageRequest(
-                new TeamsMessageRequest.Body(html)
-        );
+        String html = "<h3>" + title + "</h3><p>" + content + "</p><br/><small><em>Posted by "+currentEmployee.getName()+"</em></small>";
+
+        TeamsMessageRequest request = new TeamsMessageRequest(new TeamsMessageRequest.Body(html));
 
         try {
             TeamsMessageResponse response = restClient.post()
