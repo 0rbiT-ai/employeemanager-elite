@@ -1,5 +1,7 @@
 package com.elite.employeemanager.meeting.controller;
 
+import com.elite.employeemanager.meeting.attachment.entity.Attachment;
+import com.elite.employeemanager.meeting.attachment.service.AttachmentService;
 import com.elite.employeemanager.meeting.entity.Meeting;
 import com.elite.employeemanager.meeting.service.MeetingService;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,7 @@ import java.util.List;
 public class MeetingController {
 
     private final MeetingService meetingService;
+    private final AttachmentService attachmentService;
 
     // 1. Create a new meeting
     @PostMapping
@@ -65,5 +68,12 @@ public class MeetingController {
     @PreAuthorize("hasAuthority('MEETING_UPDATE')")
     public ResponseEntity<Meeting> removeAttendee(@PathVariable Long id, @PathVariable Long employeeId) {
         return new ResponseEntity<>(meetingService.removeAttendee(id, employeeId), HttpStatus.OK);
+    }
+
+    // 8. Get all attachments for a meeting
+    @GetMapping("/{id}/attachments")
+    @PreAuthorize("hasAuthority('ATTACHMENT_VIEW')")
+    public ResponseEntity<List<Attachment>> getMeetingAttachments(@PathVariable Long id) {
+        return new ResponseEntity<>(attachmentService.getAttachmentsByMeetingId(id), HttpStatus.OK);
     }
 }

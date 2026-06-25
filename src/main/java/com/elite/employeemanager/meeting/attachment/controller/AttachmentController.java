@@ -1,7 +1,7 @@
-package com.elite.employeemanager.attachment.controller;
+package com.elite.employeemanager.meeting.attachment.controller;
 
-import com.elite.employeemanager.attachment.entity.Attachment;
-import com.elite.employeemanager.attachment.service.AttachmentService;
+import com.elite.employeemanager.meeting.attachment.entity.Attachment;
+import com.elite.employeemanager.meeting.attachment.service.AttachmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -25,8 +25,10 @@ public class AttachmentController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('ATTACHMENT_UPLOAD')")
-    public ResponseEntity<Attachment> uploadAttachment(@RequestParam("file") MultipartFile file) {
-        return new ResponseEntity<>(attachmentService.uploadAttachment(file), HttpStatus.CREATED);
+    public ResponseEntity<Attachment> uploadAttachment(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("meetingId") Long meetingId) {
+        return new ResponseEntity<>(attachmentService.uploadAttachment(file, meetingId), HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
@@ -40,6 +42,7 @@ public class AttachmentController {
     public ResponseEntity<List<Attachment>> getAllAttachments() {
         return new ResponseEntity<>(attachmentService.getAllAttachments(), HttpStatus.OK);
     }
+
 
     @GetMapping("/{id}/download")
     @PreAuthorize("hasAuthority('ATTACHMENT_VIEW')")

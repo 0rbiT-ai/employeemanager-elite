@@ -1,7 +1,7 @@
-package com.elite.employeemanager.attachment.entity;
+package com.elite.employeemanager.meeting.attachment.entity;
 
 import com.elite.employeemanager.employee.entity.Employee;
-import com.elite.employeemanager.task.entity.Task;
+import com.elite.employeemanager.meeting.entity.Meeting;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -37,6 +37,11 @@ public class Attachment {
     @JoinColumn(name = "uploaded_by",nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Employee uploadedBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "meeting_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private Meeting meeting;
 
     @Column(nullable = false,updatable = false)
     private LocalDateTime uploadedAt;
