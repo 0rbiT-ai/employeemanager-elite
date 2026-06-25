@@ -18,4 +18,6 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
     WHERE work_email = :email
     """, nativeQuery = true)
     Optional<Employee> findAnyByWorkEmail(@Param("email") String email);
+
+    Optional<Employee> findByUserId(Long userId);
 }

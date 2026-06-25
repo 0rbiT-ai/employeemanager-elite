@@ -70,6 +70,11 @@ public class PermissionSeeder implements CommandLineRunner {
         Permission meetingUpdate = seedPermission("MEETING_UPDATE", "Update scheduled meetings");
         Permission meetingDelete = seedPermission("MEETING_DELETE", "Cancel or delete meetings");
 
+        Permission linkView = seedPermission("LINK_VIEW", "View links");
+        Permission linkCreate = seedPermission("LINK_CREATE", "Create links");
+        Permission linkUpdate = seedPermission("LINK_UPDATE", "Update links");
+        Permission linkDelete = seedPermission("LINK_DELETE", "Delete links");
+
         // 2. Fetch Roles
         Role admin = roleRepository.findByRoleCode("ADMIN").orElseThrow();
         Role teamLead = roleRepository.findByRoleCode("TEAM_LEAD").orElseThrow();
@@ -123,6 +128,11 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(admin, meetingUpdate);
         mapPermissionToRole(admin, meetingDelete);
 
+        mapPermissionToRole(admin, linkView);
+        mapPermissionToRole(admin, linkCreate);
+        mapPermissionToRole(admin, linkUpdate);
+        mapPermissionToRole(admin, linkDelete);
+
 // ==================== TEAM LEAD ====================
 
         mapPermissionToRole(teamLead, employeeView);
@@ -161,6 +171,11 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(teamLead, meetingCreate);
         mapPermissionToRole(teamLead, meetingUpdate);
         mapPermissionToRole(teamLead, meetingDelete);
+
+        mapPermissionToRole(teamLead, linkView);
+        mapPermissionToRole(teamLead, linkCreate);
+        mapPermissionToRole(teamLead, linkUpdate);
+        mapPermissionToRole(teamLead, linkDelete);
 
 // ==================== SUB LEAD ====================
 
@@ -201,6 +216,11 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(subLead, meetingUpdate);
         mapPermissionToRole(subLead, meetingDelete);
 
+        mapPermissionToRole(subLead, linkView);
+        mapPermissionToRole(subLead, linkCreate);
+        mapPermissionToRole(subLead, linkUpdate);
+        mapPermissionToRole(subLead, linkDelete);
+
 
 // ==================== EMPLOYEE ====================
 
@@ -227,6 +247,11 @@ public class PermissionSeeder implements CommandLineRunner {
         mapPermissionToRole(employee, meetingCreate);
         mapPermissionToRole(employee, meetingUpdate);
         mapPermissionToRole(employee, meetingDelete);
+
+        mapPermissionToRole(employee, linkView);
+        mapPermissionToRole(employee, linkCreate);
+        mapPermissionToRole(employee, linkUpdate);
+        mapPermissionToRole(employee, linkDelete);
     }
 
     private Permission seedPermission(String name, String description) {
