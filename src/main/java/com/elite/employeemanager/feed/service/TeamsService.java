@@ -40,9 +40,10 @@ public class TeamsService {
                 "title", title,
                 "text", formattedText
         );
+        log.info("Sending message to Teams Webhook URL: {}", teamsProperties.getWebhookUrl());
         try {
             restClient.post()
-                    .uri(teamsProperties.getWebhookUrl())
+                    .uri(java.net.URI.create(teamsProperties.getWebhookUrl()))
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(payload)
                     .retrieve()
@@ -51,7 +52,11 @@ public class TeamsService {
             return "SUCCESS";
         } catch (RestClientResponseException e) {
             log.error("Teams webhook call failed. Status: {}, Response: {}", e.getStatusCode(), e.getResponseBodyAsString(), e);
-            throw new ResponseStatusException(HttpStatus.valueOf(e.getStatusCode().value()), "Teams webhook post failed", e);
+            HttpStatus status = HttpStatus.valueOf(e.getStatusCode().value());
+            if (status == HttpStatus.UNAUTHORIZED || status == HttpStatus.FORBIDDEN) {
+                status = HttpStatus.BAD_GATEWAY;
+            }
+            throw new ResponseStatusException(status, "Teams webhook post failed: " + e.getMessage(), e);
         } catch (Exception e) {
             log.error("Unexpected error calling Teams webhook", e);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Teams webhook integration failed", e);
