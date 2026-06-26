@@ -41,6 +41,7 @@ public class TaskDraftBatchService {
 
     }
 
+    @Transactional(readOnly = true)
     public Optional<TaskDraftBatch> getMyDraft() {
         return taskDraftBatchRepository.findByCreatedByAndStatus(securityUtils.getCurrentUser().getId(), "OPEN");
     }
@@ -50,6 +51,7 @@ public class TaskDraftBatchService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No open drafts for current user"));
     }
 
+    @Transactional
     public void deleteDraft() {
         TaskDraftBatch batch = getMyDraftOrThrow();
         batch.setStatus("DISCARDED");

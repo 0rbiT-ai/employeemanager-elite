@@ -23,8 +23,7 @@ public class TaskDraftBatch extends AuditableEntity {
     @Column(nullable = false)
     private String status;
 
-    @Lob
-    @Column(name = "items_json", nullable = false)
+    @Column(name = "items_json", columnDefinition = "TEXT", nullable = false)
     private String teamsMessage;
 
     private LocalDateTime reminderSentAt;
