@@ -1156,7 +1156,100 @@ Access to protected endpoints is governed by authorities compiled from user role
 
 ---
 
-## 17. Meetings Module
+## 17. Task Draft Batch & Teams Notification Module
+**Base Path:** `/api/v1/task-drafts` (Requires HTTPOnly cookies)
+
+This module allows Team Leads and Admins to persist a staging batch of tasks as a draft before publishing. The draft survives page refreshes and enables a manual **"Send to Teams"** button. A daily cron job at **8:00 PM IST** automatically posts a reminder to Microsoft Teams for any open batches not published by end of day.
+
+> **Note:** The `teamsMessage` field is a pre-formatted HTML string built by the frontend from the staged task list (task numbers, assignees, ETAs, priorities). The backend stores it as-is and posts it verbatim to the Teams webhook.
+
+### 17.1. Save / Update Draft Batch
+*   **HTTP Method:** `POST`
+*   **Path:** `/`
+*   **Required Permission:** `TASK_CREATE`
+*   **Request Body (`text/plain` or `application/json` raw string):**
+    ```
+    "<b>TASK-101:</b> Fix login redirect | Assigned to: Jane Doe (ETA: Jun 27)<br/><b>TASK-102:</b> API Integration | Assigned to: Akilesh (ETA: Jun 29)"
+    ```
+*   **Behaviour:** If an `OPEN` batch already exists for the current user today, its `teamsMessage` is replaced (full-replace). If none exists, a new batch is created with status `OPEN`. A partial unique index (`idx_task_draft_open`) on `(created_by) WHERE status = 'OPEN'` enforces at most one open draft per user at the database level.
+*   **Success Response (200 OK):** `"Task draft saved successfully"`
+*   **Error Response (400 Bad Request):** `"Teams message cannot be empty"`
+
+### 17.2. Get My Current Draft
+*   **HTTP Method:** `GET`
+*   **Path:** `/`
+*   **Required Permission:** `TASK_CREATE`
+*   **Description:** Returns the current user's active `OPEN` draft batch. Used by the frontend to restore staged task state on page refresh.
+*   **Success Response (200 OK):** Returns the [`TaskDraftBatch`](./src/main/java/com/elite/employeemanager/task/entity/TaskDraftBatch.java) object:
+    ```json
+    {
+      "id": 5,
+      "status": "OPEN",
+      "teamsMessage": "<b>TASK-101:</b> Fix login redirect | Assigned to: Jane Doe...",
+      "reminderSentAt": null,
+      "createdAt": "2026-06-26T10:00:00",
+      "createdBy": 3,
+      "updatedAt": "2026-06-26T14:30:00",
+      "updatedBy": 3
+    }
+    ```
+*   **Success Response (204 No Content):** Returned when the current user has no open draft (not an error — frontend treats this as an empty staging area).
+
+### 17.3. Discard Draft
+*   **HTTP Method:** `DELETE`
+*   **Path:** `/`
+*   **Required Permission:** `TASK_UPDATE` or `TASK_DELETE`
+*   **Description:** Marks the current user's open draft batch as `DISCARDED`. The row is retained in the database for audit purposes but excluded from all active queries.
+*   **Success Response (200 OK):** `"Task draft discarded successfully"`
+*   **Error Response (404 Not Found):** `"No open drafts for current user"`
+
+### 17.4. Send Draft Summary to Teams
+*   **HTTP Method:** `POST`
+*   **Path:** `/send`
+*   **Required Permission:** `TEAMS_POST`
+*   **Description:** Reads the current user's open draft batch, posts the stored `teamsMessage` to Microsoft Teams via the configured webhook (`TEAMS_WEBHOOK_URL`), then marks the batch as `PUBLISHED`.
+*   **Success Response (200 OK):** `"Task summary sent to Microsoft Teams successfully"`
+*   **Error Responses:**
+    *   `404 Not Found`: No open draft exists for the current user.
+    *   `500 Internal Server Error`: Teams webhook call failed.
+
+### 17.5. Automated 8 PM IST Daily Reminder (Scheduled Job)
+*   **Trigger:** Spring `@Scheduled` cron — `0 0 20 * * *` in zone `Asia/Kolkata` (fires every day at 8:00 PM IST).
+*   **Permission:** Runs as a system background thread — no HTTP call, no user authentication required. Uses the overloaded `TeamsService.postMessage(title, content, senderName)` with `senderName = "System Scheduler"`.
+*   **Logic:**
+    1.  Queries all `task_draft_batch` rows where `status = 'OPEN'` and `created_at >= start of today (IST)`.
+    2.  For each batch: resolves the TL's name from `EmployeeRepository`, builds a reminder message prefixed with their name, and posts it to Teams.
+    3.  Marks each processed batch `status = 'REMINDED'` and sets `reminderSentAt` to prevent duplicate sends.
+    4.  Failures for individual batches are logged and skipped — other batches continue processing.
+*   **Teams Message Format:**
+    ```
+    Title:   ⏰ Staged Tasks Reminder — Action Required
+    Body:    The following staged tasks were not published today by <TL Name>.
+             Please review and publish them as soon as possible.
+             <stored teamsMessage HTML>
+             Posted by: System Scheduler
+    ```
+
+### Draft Batch Status Lifecycle
+
+```
+  OPEN  ──► (TL clicks Send to Teams) ──► PUBLISHED
+    │
+    └──► (8 PM cron fires, still OPEN) ──► REMINDED
+    │
+    └──► (TL clicks Discard) ──► DISCARDED
+```
+
+| Status | Description |
+| :--- | :--- |
+| `OPEN` | Actively staged by the TL, not yet published or sent |
+| `PUBLISHED` | TL clicked "Send to Teams" — batch converted to real tasks |
+| `REMINDED` | 8 PM cron sent an auto-reminder to Teams |
+| `DISCARDED` | TL explicitly discarded the staging batch |
+
+---
+
+## 18. Meetings Module
 **Base Path:** `/api/v1/meetings` (Requires HTTPOnly cookies)
 
 ### 17.1. Create Meeting
@@ -1223,7 +1316,7 @@ Access to protected endpoints is governed by authorities compiled from user role
 *   **Error Response (403 Forbidden):** `"You are not authorized to modify attendees for this meeting"`
 ---
 
-## 18. Links Module
+## 19. Links Module
 **Base Path:** `/api/v1/links` (Requires HTTPOnly cookies)
 
 ### 18.1. Create Link
@@ -1276,11 +1369,11 @@ Access to protected endpoints is governed by authorities compiled from user role
 
 ---
 
-## 19. Membership Behavior & Access Rules Matrix
+## 20. Membership Behavior & Access Rules Matrix
 
 The following tables describe the membership behavior and cross-entity authorization checks (managed dynamically in the service layer) for Teams, Projects, Dynamic Role Assignment, and Tasks:
 
-### 19.1. Teams Module Behavior
+### 20.1. Teams Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Team** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | |
@@ -1295,7 +1388,7 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **View Another Employee's Teams** | Allowed | Blocked (403) | Blocked (403) | Blocked (403) | |
 | **View Own Teams** | Allowed | Allowed | Allowed | Allowed | |
 
-### 19.2. Projects & Project Management Behavior
+### 20.2. Projects & Project Management Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Project** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | |
@@ -1309,14 +1402,14 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Add Project Members** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
 | **Remove Project Members** | Any Project | Projects they belong to + projects of their team members | Projects they belong to + projects of their team members | Blocked (403) | Requires Lead/SubLead + Membership or Managed Team Projects |
 
-### 19.3. Dynamic Role Assignment
+### 20.3. Dynamic Role Assignment
 *   **Employee becomes Team Lead of an ACTIVE team**: Gets `TEAM_LEAD` role.
 *   **Employee becomes Sub Lead of an ACTIVE team**: Gets `SUB_LEAD` role.
 *   **Employee no longer leads any ACTIVE team**: `TEAM_LEAD` role removed.
 *   **Employee no longer subleads any ACTIVE team**: `SUB_LEAD` role removed.
 *   **Employee is only a regular team member**: `EMPLOYEE` role only.
 
-### 19.4. Tasks Module Behavior
+### 20.4. Tasks Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Task** | Any Project | Visible Projects | Visible Projects | Blocked (403) | Requires project access |
@@ -1329,14 +1422,14 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **View Tasks By Project ID** | Any Project | Visible Projects | Visible Projects | Only own tasks within project | |
 | **View Backlog Tasks** | All Backlog Tasks | All Backlog Tasks | All Backlog Tasks | All Backlog Tasks | Currently unsecured in code |
 
-### 19.5. Task Comments Module Behavior
+### 20.5. Task Comments Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Add Comment** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
 | **Get Comments** | Allowed (all tasks) | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
 | **Delete Comment** | Allowed | Allowed only if own comment | Allowed only if own comment | Allowed only if own comment | Only Admin or comment Author can delete |
 
-### 19.6. Task Tags & Tag Mapping Module Behavior
+### 20.6. Task Tags & Tag Mapping Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Task Tag** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | Requires manager role |
@@ -1347,7 +1440,7 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Remove Tag from Task** | Allowed on visible tasks | Allowed on visible tasks | Allowed on visible tasks | Blocked (403) | Requires manager role + task visibility |
 | **Get Tags for Task** | Allowed on visible tasks | Allowed on visible tasks | Allowed on visible tasks | Allowed on assigned tasks | Requires task visibility |
 
-### 19.7. Task Attachments Module Behavior
+### 20.7. Task Attachments Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Upload Attachment** | Allowed on any task | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
@@ -1355,7 +1448,7 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Get Attachment Metadata** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
 | **Delete Attachment** | Allowed | Allowed if own file or if uploader is a managed team member | Allowed if own file or if uploader is a managed team member | Allowed if own file | Restricted to Admin, Uploader, or Uploader's Team Lead/Sub Lead |
 
-### 19.8. ETA Extension Requests Module Behavior
+### 20.8. ETA Extension Requests Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create ETA Request** | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Allowed on tasks assigned to self | Requires task assignee status |
@@ -1365,7 +1458,7 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Reject ETA Request** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Requires manager role + task visibility |
 | **Undo Request Decision** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Requires manager role + task visibility |
 
-### 19.9. Task Transfer Requests Module Behavior
+### 20.9. Task Transfer Requests Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Transfer Request** | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Blocked (403) unless task assigned to self | Allowed on tasks assigned to self | Target employee must belong to same project |
@@ -1375,13 +1468,13 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Reject Transfer Request** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Requires manager role + task visibility |
 | **Undo Request Decision** | Allowed globally | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Blocked (403) | Re-assigns task back to original requester |
 
-### 19.10. Task Status History Module Behavior
+### 20.10. Task Status History Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Status History** | Automatic/System | Automatic/System | Automatic/System | Automatic/System | Triggered during task updates/transfers/ETA extension decisions |
 | **View Task Status History** | Allowed | Allowed on tasks in visible projects | Allowed on tasks in visible projects | Allowed on tasks assigned to self | Requires task visibility |
 
-### 19.11. Timesheet Module Behavior
+### 20.11. Timesheet Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Timesheet Entry** | Allowed globally | Allowed for self | Allowed for self | Allowed for self | Must belong to project; timesheet entries cannot overlap; blocked on completed or review tasks |
@@ -1390,7 +1483,7 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Patch Update Entry** | Allowed globally | Blocked (403) unless own entry | Blocked (403) unless own entry | Allowed for self only | Subject to task review rules, overlap checks, and project membership |
 | **Delete Timesheet Entry** | Allowed globally | Blocked (403) unless own entry | Blocked (403) unless own entry | Allowed for self only | |
 
-### 19.12. Attachment Module Behavior
+### 20.12. Attachment Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Upload Attachment** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | File size capped at 50 MB; stored in S3 with UUID-prefixed key |
@@ -1399,7 +1492,7 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Download Attachment** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | Streams directly from S3 with Content-Disposition header |
 | **Delete Attachment** | Allowed globally | Allowed if own file or uploader is managed team member | Allowed if own file or uploader is managed team member | Allowed for own uploads only | Service enforces: Admin OR Uploader OR Uploader's Team Lead/Sub Lead |
 
-### 19.13. Feed & Teams Module Behavior
+### 20.13. Feed & Teams Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **View Announcements** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | Requires `ANNOUNCEMENT_VIEW` |
@@ -1407,7 +1500,7 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Delete Announcement** | Allowed globally | Allowed globally | Allowed globally | Blocked (403) | Requires `ANNOUNCEMENT_DELETE` |
 | **Manual Teams Post** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | Requires `TEAMS_POST`; posts to Teams via daemon credentials |
 
-### 19.14. Meetings Module Behavior
+### 20.14. Meetings Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Meeting** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | Requires `MEETING_CREATE` |
@@ -1417,7 +1510,7 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **Delete Meeting** | Allowed globally | Allowed globally | Allowed globally | Allowed if creator | Requires `MEETING_DELETE`; creator check matched by User ID |
 | **Add/Remove Attendees** | Allowed globally | Allowed globally | Allowed globally | Allowed if creator | Requires `MEETING_UPDATE`; creator check matched by User ID |
 
-### 19.15. Links Module Behavior
+### 20.15. Links Module Behavior
 | Action | Admin | Team Lead | Sub Lead | Employee | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Create Link** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | Requires `LINK_CREATE` |
@@ -1425,3 +1518,12 @@ The following tables describe the membership behavior and cross-entity authoriza
 | **View Link By ID** | Allowed globally | Allowed globally | Allowed globally | Allowed globally | Requires `LINK_VIEW` |
 | **Update Link** | Allowed globally | Allowed if creator or creator's team lead/sub lead | Allowed if creator or creator's team lead/sub lead | Allowed if creator | Requires `LINK_UPDATE`; creator check matched by User ID |
 | **Delete Link** | Allowed globally | Allowed if creator or creator's team lead/sub lead | Allowed if creator or creator's team lead/sub lead | Allowed if creator | Requires `LINK_DELETE`; creator check matched by User ID |
+
+### 20.16. Task Draft Batch & Teams Notification Module Behavior
+| Action | Admin | Team Lead | Sub Lead | Employee | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Save/Update Draft** | Allowed | Allowed | Allowed | Blocked (403) | Requires `TASK_CREATE`; replaces existing OPEN batch for the day |
+| **Get My Draft** | Allowed | Allowed | Allowed | Blocked (403) | Requires `TASK_CREATE`; returns 204 if no open draft exists |
+| **Discard Draft** | Allowed | Allowed | Allowed | Blocked (403) | Requires `TASK_UPDATE` or `TASK_DELETE`; marks batch DISCARDED |
+| **Send to Teams** | Allowed | Allowed | Allowed | Blocked (403) | Requires `TEAMS_POST`; posts stored HTML summary to Teams webhook, marks batch PUBLISHED |
+| **8 PM Auto-Reminder** | System | System | System | System | Server-side `@Scheduled` cron (Asia/Kolkata); no HTTP endpoint; marks batch REMINDED after send |
