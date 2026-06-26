@@ -27,10 +27,15 @@ public class TeamsService {
 
     public String postMessage(String title, String content) {
         Employee currentEmployee = securityUtils.getCurrentEmployee();
+        return postMessage(title, content, currentEmployee.getName());
+    }
 
-        // Formulate the message text
-        String formattedText = content + "<br/><br/><small><em>Posted by " + currentEmployee.getName() + "</em></small>";
-        // Create simple payload map
+    /**
+     * Overloaded variant for background/scheduled jobs where no SecurityContext is available.
+     * Accepts a sender name string directly instead of resolving it from the authenticated user.
+     */
+    public String postMessage(String title, String content, String senderName) {
+        String formattedText = content + "<br/><br/><small><em>Posted by " + senderName + "</em></small>";
         Map<String, String> payload = Map.of(
                 "title", title,
                 "text", formattedText
@@ -41,7 +46,7 @@ public class TeamsService {
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(payload)
                     .retrieve()
-                    .toBodilessEntity(); // Webhooks return 202 Accepted with empty body
+                    .toBodilessEntity();
 
             return "SUCCESS";
         } catch (RestClientResponseException e) {

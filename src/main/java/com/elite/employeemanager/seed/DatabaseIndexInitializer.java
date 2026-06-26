@@ -37,6 +37,8 @@ public class DatabaseIndexInitializer implements CommandLineRunner {
         // For tasks: task_number only unique for active tasks
         jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_task_number ON tasks(task_number) WHERE is_deleted = false;");
 
+        //task draft status
+        jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_task_draft_open ON task_draft_batch(created_by) WHERE status = 'OPEN';");
 
         System.out.println("Database partial indexes applied successfully!");
     }
