@@ -230,6 +230,7 @@ public class PermissionSeeder implements CommandLineRunner {
 
         mapPermissionToRole(employee, projectView);
 
+        mapPermissionToRole(employee,taskUpdate);
         mapPermissionToRole(employee, taskView);
 
         mapPermissionToRole(employee, timesheetView);
