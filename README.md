@@ -353,7 +353,8 @@ Access to protected endpoints is governed by authorities compiled from user role
     {
       "teamName": "Engineering Core", // Unique
       "description": "Handles infrastructure and core microservices", // Optional
-      "teamsChannelId": "19:abc123xyz@thread.v2", // Optional Microsoft Teams channel ID
+      "teamsGroupId": "90a9b8c7-d6e5-4f4a-8b9c-123456789abc", // Required Microsoft Teams Group ID (GUID)
+      "teamsChannelId": "19:abc123xyz@thread.v2", // Required Microsoft Teams Channel ID
       "status": "ACTIVE", // Optional. Allowed: "ACTIVE", "INACTIVE" (Defaults to "ACTIVE")
       "lead": {
         "id": 1 // Required: Employee ID of the Team Lead
@@ -387,7 +388,8 @@ Access to protected endpoints is governed by authorities compiled from user role
     {
       "teamName": "Engineering Platform Core",
       "description": "Upgraded scope to manage developer platforms",
-      "teamsChannelId": "19:newchannelabc@thread.v2",
+      "teamsGroupId": "90a9b8c7-d6e5-4f4a-8b9c-123456789abc", // Teams Group ID (GUID)
+      "teamsChannelId": "19:newchannelabc@thread.v2", // Teams Channel ID
       "status": "ACTIVE",
       "lead": {
         "id": 1
@@ -1167,11 +1169,15 @@ This module allows Team Leads and Admins to persist a staging batch of tasks as 
 *   **HTTP Method:** `POST`
 *   **Path:** `/`
 *   **Required Permission:** `TASK_CREATE`
-*   **Request Body (`text/plain` or `application/json` raw string):**
+*   **Request Body (`application/json`):**
+    ```json
+    {
+      "teamsMessage": "<b>TASK-101:</b> Fix login redirect | Assigned to: Jane Doe (ETA: Jun 27)<br/><b>TASK-102:</b> API Integration | Assigned to: Akilesh (ETA: Jun 29)",
+      "teamsGroupId": "90a9b8c7-d6e5-4f4a-8b9c-123456789abc",
+      "teamsChannelId": "19:abc123xyz@thread.v2"
+    }
     ```
-    "<b>TASK-101:</b> Fix login redirect | Assigned to: Jane Doe (ETA: Jun 27)<br/><b>TASK-102:</b> API Integration | Assigned to: Akilesh (ETA: Jun 29)"
-    ```
-*   **Behaviour:** If an `OPEN` batch already exists for the current user today, its `teamsMessage` is replaced (full-replace). If none exists, a new batch is created with status `OPEN`. A partial unique index (`idx_task_draft_open`) on `(created_by) WHERE status = 'OPEN'` enforces at most one open draft per user at the database level.
+*   **Behaviour:** If an `OPEN` batch already exists for the current user today, its `teamsMessage`, `teamsGroupId`, and `teamsChannelId` are updated (full-replace). If none exists, a new batch is created with status `OPEN`. A partial unique index (`idx_task_draft_open`) on `(created_by) WHERE status = 'OPEN'` enforces at most one open draft per user at the database level.
 *   **Success Response (200 OK):** `"Task draft saved successfully"`
 *   **Error Response (400 Bad Request):** `"Teams message cannot be empty"`
 
@@ -1186,6 +1192,8 @@ This module allows Team Leads and Admins to persist a staging batch of tasks as 
       "id": 5,
       "status": "OPEN",
       "teamsMessage": "<b>TASK-101:</b> Fix login redirect | Assigned to: Jane Doe...",
+      "teamsGroupId": "90a9b8c7-d6e5-4f4a-8b9c-123456789abc",
+      "teamsChannelId": "19:abc123xyz@thread.v2",
       "reminderSentAt": null,
       "createdAt": "2026-06-26T10:00:00",
       "createdBy": 3,
@@ -1210,6 +1218,7 @@ This module allows Team Leads and Admins to persist a staging batch of tasks as 
 *   **Description:** Reads the current user's open draft batch, posts the stored `teamsMessage` to Microsoft Teams via the configured webhook (`TEAMS_WEBHOOK_URL`), then marks the batch as `PUBLISHED`.
 *   **Success Response (200 OK):** `"Task summary sent to Microsoft Teams successfully"`
 *   **Error Responses:**
+    *   `400 Bad Request`: Teams Group ID and Channel ID are required to send the draft to Teams.
     *   `404 Not Found`: No open draft exists for the current user.
     *   `500 Internal Server Error`: Teams webhook call failed.
 
