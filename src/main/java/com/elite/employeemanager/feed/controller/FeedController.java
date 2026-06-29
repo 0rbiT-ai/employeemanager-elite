@@ -1,5 +1,6 @@
 package com.elite.employeemanager.feed.controller;
 
+import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 import com.elite.employeemanager.feed.dto.TeamsPostRequest;
 import com.elite.employeemanager.feed.entity.Feed;
 import com.elite.employeemanager.feed.service.FeedService;
@@ -20,6 +21,7 @@ public class FeedController {
 
     private final FeedService feedService;
     private final TeamsService teamsService;
+    private final SecurityUtils securityUtils;
 
     @GetMapping
     @PreAuthorize("hasAuthority('ANNOUNCEMENT_VIEW')")
@@ -52,11 +54,15 @@ public class FeedController {
         if (request.getMessage() == null || request.getMessage().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Message content is required");
         }
+        if (request.getTeamsGroupId() == null || request.getTeamsGroupId().isBlank() ||
+                request.getTeamsChannelId() == null || request.getTeamsChannelId().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Teams Group ID and Channel ID are required");
+        }
         String title = request.getTitle() != null && !request.getTitle().isBlank() 
                 ? request.getTitle() 
                 : "App Notification";
                 
-        teamsService.postMessage(title, request.getMessage());
+        teamsService.postMessage(title, request.getMessage(),securityUtils.getCurrentEmployee().getName(),request.getTeamsGroupId(), request.getTeamsChannelId());
         return new ResponseEntity<>("Message posted to Teams successfully", HttpStatus.OK);
     }
 }

@@ -64,6 +64,7 @@ public class FeedService {
 
         feed = feedRepository.save(feed);
 
+        /*
         if (publishTeams) {
             try {
                 String messageId = teamsService.postMessage(feed.getTitle(), feed.getContent());
@@ -75,7 +76,7 @@ public class FeedService {
             }
             feedRepository.save(feed);
         }
-
+        */
         return feed;
     }
 

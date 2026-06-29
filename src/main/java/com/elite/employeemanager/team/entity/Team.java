@@ -41,6 +41,9 @@ public class Team extends AuditSoftDeleteEntity {
     @Column(name = "teams_channel_id")
     private String teamsChannelId;
 
+    @Column(name = "teams_group_id")
+    private String teamsGroupId;
+
     @Column(nullable = false)
     private String status;
 

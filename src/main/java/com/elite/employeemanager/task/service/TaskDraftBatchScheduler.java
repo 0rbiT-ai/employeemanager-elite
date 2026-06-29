@@ -55,7 +55,9 @@ public class TaskDraftBatchScheduler {
                 teamsService.postMessage(
                         "⏰ Staged Tasks Reminder — Action Required",
                         message,
-                        "System Scheduler"
+                        "System Scheduler",
+                        batch.getTeamsGroupId(),
+                        batch.getTeamsChannelId()
                 );
 
                 batch.setStatus("REMINDED");

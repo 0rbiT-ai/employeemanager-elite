@@ -25,20 +25,24 @@ public class TeamsService {
     private final RestClient restClient;
     private final SecurityUtils securityUtils;
 
+    /*
     public String postMessage(String title, String content) {
         Employee currentEmployee = securityUtils.getCurrentEmployee();
         return postMessage(title, content, currentEmployee.getName());
     }
+    */
 
     /**
      * Overloaded variant for background/scheduled jobs where no SecurityContext is available.
      * Accepts a sender name string directly instead of resolving it from the authenticated user.
      */
-    public String postMessage(String title, String content, String senderName) {
+    public String postMessage(String title, String content, String senderName, String groupId, String channelId) {
         String formattedText = content + "<br/><br/><small><em>Posted by " + senderName + "</em></small>";
         Map<String, String> payload = Map.of(
                 "title", title,
-                "text", formattedText
+                "text", formattedText,
+                "teamsGroupId", groupId != null ? groupId : "",
+                "teamsChannelId", channelId != null ? channelId : ""
         );
         log.info("Sending message to Teams Webhook URL: {}", teamsProperties.getWebhookUrl());
         try {

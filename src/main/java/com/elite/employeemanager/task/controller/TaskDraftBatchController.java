@@ -1,5 +1,6 @@
 package com.elite.employeemanager.task.controller;
 
+import com.elite.employeemanager.task.dto.TaskDraftRequest;
 import com.elite.employeemanager.task.entity.TaskDraftBatch;
 import com.elite.employeemanager.task.service.TaskDraftBatchService;
 import lombok.RequiredArgsConstructor;
@@ -16,8 +17,8 @@ public class TaskDraftBatchController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('TASK_CREATE')")
-    public ResponseEntity<String> saveDraft(@RequestBody String teamsMessage) {
-        taskDraftBatchService.saveDraft(teamsMessage);
+    public ResponseEntity<String> saveDraft(@RequestBody TaskDraftRequest request) {
+        taskDraftBatchService.saveDraft(request.getTeamsMessage(), request.getTeamsGroupId(), request.getTeamsChannelId());
         return new ResponseEntity<>("Task draft saved successfully", HttpStatus.OK);
     }
 
