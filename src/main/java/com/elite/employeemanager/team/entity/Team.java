@@ -38,10 +38,10 @@ public class Team extends AuditSoftDeleteEntity {
     @OnDelete(action = OnDeleteAction.SET_NULL)
     private Employee subLead;
 
-    @Column(name = "teams_channel_id")
+    @Column(name = "teams_channel_id", nullable = false)
     private String teamsChannelId;
 
-    @Column(name = "teams_group_id")
+    @Column(name = "teams_group_id", nullable = false)
     private String teamsGroupId;
 
     @Column(nullable = false)

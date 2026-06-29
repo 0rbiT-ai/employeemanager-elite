@@ -42,6 +42,11 @@ public class TeamService {
             team.setStatus("ACTIVE");
         }
 
+        if (team.getTeamsGroupId() == null || team.getTeamsGroupId().isBlank() ||
+                team.getTeamsChannelId() == null || team.getTeamsChannelId().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Teams Group ID and Channel ID are required");
+        }
+
         if (team.getLead() == null) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -128,8 +133,18 @@ public class TeamService {
             existingTeam.setDescription(updatedTeam.getDescription());
         }
 
-        if (updatedTeam.getTeamsChannelId()!=null){
+        if (updatedTeam.getTeamsChannelId() != null) {
+            if (updatedTeam.getTeamsChannelId().isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Teams Channel ID cannot be empty");
+            }
             existingTeam.setTeamsChannelId(updatedTeam.getTeamsChannelId());
+        }
+
+        if (updatedTeam.getTeamsGroupId() != null) {
+            if (updatedTeam.getTeamsGroupId().isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Teams Group ID cannot be empty");
+            }
+            existingTeam.setTeamsGroupId(updatedTeam.getTeamsGroupId());
         }
 
         Employee finalLead = updatedTeam.getLead() != null ? updatedTeam.getLead() : existingTeam.getLead();

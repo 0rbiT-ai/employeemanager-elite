@@ -25,9 +25,6 @@ public class TaskDraftBatchService {
         if (teamsMessage == null || teamsMessage.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Teams message cannot be empty");
         }
-        if (teamsGroupId == null || teamsGroupId.isBlank() || teamsChannelId == null || teamsChannelId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Teams Group ID and Channel ID are required");
-        }
         User user = securityUtils.getCurrentUser();
         taskDraftBatchRepository.findByCreatedByAndStatus(user.getId(), "OPEN")
                 .ifPresentOrElse(taskDraftBatch -> {
@@ -68,6 +65,10 @@ public class TaskDraftBatchService {
     @Transactional
     public void sendToTeams(){
         TaskDraftBatch batch = getMyDraftOrThrow();
+        if (batch.getTeamsGroupId() == null || batch.getTeamsGroupId().isBlank() ||
+                batch.getTeamsChannelId() == null || batch.getTeamsChannelId().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Teams Group ID and Channel ID are required to send the draft to Teams");
+        }
         teamsService.postMessage("Today's Task Draft",batch.getTeamsMessage(),securityUtils.getCurrentEmployee().getName(),batch.getTeamsGroupId(), batch.getTeamsChannelId());
         batch.setStatus("PUBLISHED");
         taskDraftBatchRepository.save(batch);
