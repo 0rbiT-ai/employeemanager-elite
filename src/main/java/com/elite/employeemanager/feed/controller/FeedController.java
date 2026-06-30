@@ -1,10 +1,10 @@
 package com.elite.employeemanager.feed.controller;
 
 import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
-import com.elite.employeemanager.feed.dto.TeamsPostRequest;
 import com.elite.employeemanager.feed.entity.Feed;
 import com.elite.employeemanager.feed.service.FeedService;
-import com.elite.employeemanager.feed.service.TeamsService;
+import com.elite.employeemanager.msteams.dto.TeamsPostRequest;
+import com.elite.employeemanager.msteams.service.TeamsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

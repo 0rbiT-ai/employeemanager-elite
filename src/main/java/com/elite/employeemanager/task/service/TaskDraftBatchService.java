@@ -2,7 +2,7 @@ package com.elite.employeemanager.task.service;
 
 import com.elite.employeemanager.auth.jwt.utils.SecurityUtils;
 import com.elite.employeemanager.auth.user.entity.User;
-import com.elite.employeemanager.feed.service.TeamsService;
+import com.elite.employeemanager.msteams.service.TeamsService;
 import com.elite.employeemanager.task.entity.TaskDraftBatch;
 import com.elite.employeemanager.task.repository.TaskDraftBatchRepository;
 import lombok.RequiredArgsConstructor;

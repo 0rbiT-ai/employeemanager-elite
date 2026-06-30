@@ -1,4 +1,4 @@
-package com.elite.employeemanager.feed.dto;
+package com.elite.employeemanager.msteams.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;

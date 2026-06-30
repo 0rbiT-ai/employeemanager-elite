@@ -1,4 +1,4 @@
-package com.elite.employeemanager.feed.dto;
+package com.elite.employeemanager.msteams.dto;
 
 import lombok.Data;
 

@@ -1,4 +1,4 @@
-package com.elite.employeemanager.feed.config;
+package com.elite.employeemanager.msteams.config;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;

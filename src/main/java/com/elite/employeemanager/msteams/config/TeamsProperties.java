@@ -1,4 +1,4 @@
-package com.elite.employeemanager.feed.config;
+package com.elite.employeemanager.msteams.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -8,5 +8,4 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class TeamsProperties {
 
     private String webhookUrl;
-
 }
