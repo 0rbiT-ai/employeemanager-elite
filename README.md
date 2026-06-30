@@ -1382,7 +1382,7 @@ This module allows Team Leads and Admins to persist a staging batch of tasks as 
 ---
 
 ## 20. MS Teams Graph Integration Module
-**Base Path:** `/api/v1/teams-integration` (Requires HTTPOnly cookies)
+**Base Path:** `/api/v1/ms-teams` (Requires HTTPOnly cookies)
 
 This module provides proxy lookup access to the Microsoft Graph API using the OAuth2 Client Credentials Flow. It is used in the Admin dashboard to dynamically retrieve available Teams (Office 365 Groups) and their Channels.
 
