@@ -8,4 +8,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class TeamsProperties {
 
     private String webhookUrl;
+    private String tenantId;
+    private String clientId;
+    private String clientSecret;
+    
 }

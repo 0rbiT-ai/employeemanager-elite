@@ -23,12 +23,7 @@ public class TeamsService {
 
     private final TeamsProperties teamsProperties;
     private final RestClient restClient;
-    private final SecurityUtils securityUtils;
 
-    /**
-     * Overloaded variant for background/scheduled jobs where no SecurityContext is available.
-     * Accepts a sender name string directly instead of resolving it from the authenticated user.
-     */
     public String postMessage(String title, String content, String senderName, String groupId, String channelId) {
         String formattedText = content + "<br/><br/><small><em>Posted by " + senderName + "</em></small>";
         Map<String, String> payload = Map.of(
