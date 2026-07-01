@@ -13,7 +13,9 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -72,11 +74,19 @@ public class TeamsGraphService {
     @SuppressWarnings("unchecked")
     public List<Map<String,Object>> getMicrosoftTeams(){
         String token = getAccessToken();
-        String url = "https://graph.microsoft.com/v1.0/groups?$filter=resourceProvisioningOptions/any(x:x eq 'Team')&$select=id,displayName";
+
+        //String url = "https://graph.microsoft.com/v1.0/groups?$filter=resourceProvisioningOptions/any(x:x eq 'Team')&$select=id,displayName";
+
+        URI uri = UriComponentsBuilder
+                .fromUriString("https://graph.microsoft.com/v1.0/groups")
+                .queryParam("$filter", "resourceProvisioningOptions/any(x:x eq 'Team')")
+                .queryParam("$select", "id,displayName")
+                .build()
+                .toUri();
 
         try {
             Map response = restClient.get()
-                    .uri(java.net.URI.create(url))
+                    .uri(uri)
                     .header(HttpHeaders.AUTHORIZATION,"Bearer "+token)
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
@@ -99,11 +109,18 @@ public class TeamsGraphService {
         }
 
         String token = getAccessToken();
-        String url = "https://graph.microsoft.com/v1.0/teams/" + groupId + "/channels?$select=id,displayName";
+
+        //String url = "https://graph.microsoft.com/v1.0/teams/" + groupId + "/channels?$select=id,displayName";
+
+        URI uri = UriComponentsBuilder
+                .fromUriString("https://graph.microsoft.com/v1.0/teams/" + groupId + "/channels")
+                .queryParam("$select", "id,displayName")
+                .build()
+                .toUri();
 
         try {
             Map response = restClient.get()
-                    .uri(java.net.URI.create(url))
+                    .uri(uri)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
