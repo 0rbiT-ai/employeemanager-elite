@@ -95,18 +95,18 @@ public class AuthenticationService {
 
         ResponseCookie cookie = ResponseCookie.from("jwtToken",jwt)
                 .httpOnly(true)
-                .secure(false) // has to be true for production
+                .secure(true) // has to be true for production
                 .path("/")
                 .maxAge(60 * 60)
-                .sameSite("Lax") // has to be None for production
+                .sameSite("None") // has to be None for production
                 .build();
 
         ResponseCookie refreshCookie = ResponseCookie.from("refreshToken",refreshToken.getToken())
                 .httpOnly(true)
-                .secure(false)
+                .secure(true)
                 .path("/")
                 .maxAge(3 * 60 * 60)
-                .sameSite("Lax")
+                .sameSite("None")
                 .build();
 
         AuthenticationResponse authenticationResponse = AuthenticationResponse.builder()
@@ -156,10 +156,10 @@ public class AuthenticationService {
                     String newAccessToken = jwtService.generateToken(user);
                     ResponseCookie cookie = ResponseCookie.from("jwtToken",newAccessToken)
                             .httpOnly(true)
-                            .secure(false)
+                            .secure(true)
                             .path("/")
                             .maxAge(60 * 60)
-                            .sameSite("Lax")
+                            .sameSite("None")
                             .build();
                     AuthenticationResponse authenticationResponse = new AuthenticationResponse(
                             UserDto.builder()

@@ -74,18 +74,18 @@ public class AuthenticationController {
 
         ResponseCookie cookie = ResponseCookie.from("jwtToken", "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(true)
                 .path("/")
                 .maxAge(0)
-                .sameSite("Lax")
+                .sameSite("None")
                 .build();
 
         ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(true)
                 .path("/")
                 .maxAge(0)
-                .sameSite("Lax")
+                .sameSite("None")
                 .build();
 
         HttpHeaders headers = new HttpHeaders();
