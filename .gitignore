@@ -36,7 +36,6 @@ out/
 ### VS Code ###
 .vscode/
 
-/docs
 *.docx
 
 /ui
